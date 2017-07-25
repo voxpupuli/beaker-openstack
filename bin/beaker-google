@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+require 'rubygems' unless defined?(Gem)
+require 'beaker-openstack'
+
+VERSION_STRING =
+"
+                                 _ .--.
+                                ( `    )
+        beaker-openstack      .-'      `--,
+                  _..----.. (             )`-.
+                .'_|` _|` _|(  .__,           )
+               /_|  _|  _|  _(        (_,  .-'
+              ;|  _|  _|  _|  '-'__,--'`--'
+              | _|  _|  _|  _| |
+          _   ||  _|  _|  _|  _| %s
+        _( `--.\\_|  _|  _|  _|/
+     .-'       )--,|  _|  _|.`
+    (__, (_      ) )_|  _| /
+      `-.__.\\ _,--'\\|__|__/
+                    ;____;
+                     \\YT/
+                      ||
+                     |\"\"|
+                     '=='
+"
+
+
+
+puts BeakerOpenstack::VERSION
+
+exit 0
