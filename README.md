@@ -32,6 +32,33 @@ We run beaker's base acceptance tests with this library to see if the hypervisor
 
 2. `OPENSTACK_KEY` - Path to private key that is used to SSH into Openstack VMs 
 
+You will need two hosts with same platform. A template of what hosts file is below:
+
+```yaml
+HOSTS:
+  host-1:
+    hypervisor: openstack
+    platform: <my_platform> 
+    user: <host_username>
+    image: <host_image>
+    roles:
+      - agent
+      - master
+      - dashboard
+      - database
+      - default
+  host-2:
+    hypervisor: openstack
+    platform: <my_platform>
+    user: <host_username>
+    image: <host_image>
+    roles:
+      - agent
+CONFIG:
+  nfs_server: none
+  consoleport: 443
+```
+
 There is a simple rake task to invoke acceptance test for the library once the two environment variables are set:
 ```bash
 bundle exec rake test:acceptance
