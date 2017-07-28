@@ -17,7 +17,7 @@ Get openstack Access & Security credentials:
 - "openstack_network"
 - "openstack_keyname"
 
-If you are using [OpenStack Dashboard "Horizon"] (https://wiki.openstack.org/wiki/Horizon) 
+If you are using [OpenStack Dashboard "Horizon"](https://wiki.openstack.org/wiki/Horizon) 
 you can find these keys in next places:
 
 1. login to "Horizon dashboard" -> "project" -> "Compute" -> "Access & Security" -> tab "API Access" -> "Download OpenStack RC File":
