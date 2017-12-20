@@ -23,7 +23,7 @@ module Beaker
     #@option options [String] :project Added as metadata to each OpenStack instance
     #@option options [Integer] :timeout The amount of time to attempt execution before quiting and exiting with failure
     def initialize(openstack_hosts, options)
-      require 'fog'
+      require 'fog/openstack'
       @options = options
       @logger = options[:logger]
       @hosts = openstack_hosts
