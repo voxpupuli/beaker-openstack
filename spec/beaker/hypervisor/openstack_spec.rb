@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'fog'
+require 'fog/openstack'
 
 module Beaker
   describe Openstack do
