@@ -12,7 +12,8 @@ module Beaker
     #@option options [String] :openstack_api_key The key to access the OpenStack instance with (required)
     #@option options [String] :openstack_username The username to access the OpenStack instance with (required)
     #@option options [String] :openstack_auth_url The URL to access the OpenStack instance with (required)
-    #@option options [String] :openstack_tenant The tenant to access the OpenStack instance with (required)
+    #@option options [String] :openstack_tenant The tenant to access the OpenStack instance with (either this or openstack_project_name is required)
+    #@option options [String] :openstack_project_name The project name to access the OpenStack instance with (either this or openstack_tenant is required)
     #@option options [String] :openstack_region The region that each OpenStack instance should be provisioned on (optional)
     #@option options [String] :openstack_network The network that each OpenStack instance should be contacted through (required)
     #@option options [String] :openstack_keyname The name of an existing key pair that should be auto-loaded onto each
@@ -32,9 +33,14 @@ module Beaker
       raise 'You must specify an Openstack API key (:openstack_api_key) for OpenStack instances!' unless @options[:openstack_api_key]
       raise 'You must specify an Openstack username (:openstack_username) for OpenStack instances!' unless @options[:openstack_username]
       raise 'You must specify an Openstack auth URL (:openstack_auth_url) for OpenStack instances!' unless @options[:openstack_auth_url]
-      raise 'You must specify an Openstack tenant (:openstack_tenant) for OpenStack instances!' unless @options[:openstack_tenant]
+      raise 'You must specify an Openstack tenant (:openstack_tenant) or Openstack project name (:openstack_project_name) for OpenStack instances!' unless @options[:openstack_tenant] || @options[:openstack_project_name]
       raise 'You must specify an Openstack network (:openstack_network) for OpenStack instances!' unless @options[:openstack_network]
 
+      if !@options[:openstack_tenant].nil?
+        extra_credentials = {:openstack_tenant => @options[:openstack_tenant]}
+      else
+        extra_credentials = {:openstack_project_name => @options[:openstack_project_name]}
+      end
       # Common keystone authentication credentials
       @credentials = {
         :provider           => :openstack,
@@ -43,7 +49,7 @@ module Beaker
         :openstack_username => @options[:openstack_username],
         :openstack_tenant   => @options[:openstack_tenant],
         :openstack_region   => @options[:openstack_region],
-      }
+    }.merge(extra_credentials)
 
       # Keystone version 3 requires users and projects to be scoped
       if @credentials[:openstack_auth_url].include?('/v3/')
@@ -203,7 +209,7 @@ module Beaker
         ip = @compute_client.addresses.create
       rescue Fog::Compute::OpenStack::NotFound
         # If there are no more floating IP addresses, allocate a
-        # new one and try again. 
+        # new one and try again.
         @compute_client.allocate_address(@options[:floating_ip_pool])
         ip = @compute_client.addresses.find { |ip| ip.instance_id.nil? }
       end
