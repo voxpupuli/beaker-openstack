@@ -207,7 +207,7 @@ module Beaker
       begin
         @logger.debug "Creating IP"
         ip = @compute_client.addresses.create
-      rescue Fog::Compute::OpenStack::NotFound
+      rescue Fog::OpenStack::Compute::NotFound
         # If there are no more floating IP addresses, allocate a
         # new one and try again.
         @compute_client.allocate_address(@options[:floating_ip_pool])
