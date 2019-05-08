@@ -33,14 +33,21 @@ module Beaker
       raise 'You must specify an Openstack API key (:openstack_api_key) for OpenStack instances!' unless @options[:openstack_api_key]
       raise 'You must specify an Openstack username (:openstack_username) for OpenStack instances!' unless @options[:openstack_username]
       raise 'You must specify an Openstack auth URL (:openstack_auth_url) for OpenStack instances!' unless @options[:openstack_auth_url]
-      raise 'You must specify an Openstack tenant (:openstack_tenant) or Openstack project name (:openstack_project_name) for OpenStack instances!' unless @options[:openstack_tenant] || @options[:openstack_project_name]
       raise 'You must specify an Openstack network (:openstack_network) for OpenStack instances!' unless @options[:openstack_network]
 
-      if !@options[:openstack_tenant].nil?
+      is_v3 = @options[:openstack_auth_url].include?('/v3/')
+      raise 'You must specify an Openstack project name (:openstack_project_name) for OpenStack instances!' if is_v3 and !@options[:openstack_project_name]
+      raise 'You must specify an Openstack tenant (:openstack_tenant) for OpenStack instances!' if !is_v3 and !@options[:openstack_tenant]
+      raise 'Invalid option specified: v3 API expects :openstack_project_name, not :openstack_tenant for OpenStack instances!' if is_v3 and @options[:openstack_tenant]
+      raise 'Invalid option specified: v2 API expects :openstack_tenant, not :openstack_project_name for OpenStack instances!' if !is_v3 and @options[:openstack_project_name]
+
+      # Keystone version 3 changed the parameter names
+      if !is_v3
         extra_credentials = {:openstack_tenant => @options[:openstack_tenant]}
       else
         extra_credentials = {:openstack_project_name => @options[:openstack_project_name]}
       end
+
       # Common keystone authentication credentials
       @credentials = {
         :provider           => :openstack,
@@ -49,10 +56,10 @@ module Beaker
         :openstack_username => @options[:openstack_username],
         :openstack_tenant   => @options[:openstack_tenant],
         :openstack_region   => @options[:openstack_region],
-    }.merge(extra_credentials)
+      }.merge(extra_credentials)
 
       # Keystone version 3 requires users and projects to be scoped
-      if @credentials[:openstack_auth_url].include?('/v3/')
+      if is_v3
         @credentials[:openstack_user_domain]    = @options[:openstack_user_domain] || 'Default'
         @credentials[:openstack_project_domain] = @options[:openstack_project_domain] || 'Default'
       end
@@ -207,7 +214,7 @@ module Beaker
       begin
         @logger.debug "Creating IP"
         ip = @compute_client.addresses.create
-      rescue Fog::Compute::OpenStack::NotFound
+      rescue Fog::OpenStack::Compute::NotFound
         # If there are no more floating IP addresses, allocate a
         # new one and try again.
         @compute_client.allocate_address(@options[:floating_ip_pool])

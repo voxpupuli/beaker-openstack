@@ -30,10 +30,14 @@ module Beaker
       it 'supports keystone v3 with implicit arguments' do
         v3_options = options
         v3_options[:openstack_auth_url] = 'https://example.com/identity/v3/auth'
+        v3_options[:openstack_project_name] = 'TeamTest_ab_c'
+        v3_options[:openstack_tenant] = nil
 
         credentials = Openstack.new(@hosts, v3_options).instance_eval('@credentials')
         expect(credentials[:openstack_user_domain]).to eq('Default')
         expect(credentials[:openstack_project_domain]).to eq('Default')
+        expect(credentials[:openstack_project_name]).to eq('TeamTest_ab_c')
+        expect(credentials[:openstack_tenant]).to be_nil
       end
 
       it 'supports keystone v3 with explicit arguments' do
@@ -41,10 +45,13 @@ module Beaker
         v3_options[:openstack_auth_url] = 'https://example.com/identity/v3/auth'
         v3_options[:openstack_user_domain] = 'acme.com'
         v3_options[:openstack_project_domain] = 'R&D'
+        v3_options[:openstack_project_name] = 'Team_test_abc'
+        v3_options[:openstack_tenant] = nil
 
         credentials = Openstack.new(@hosts, v3_options).instance_eval('@credentials')
         expect(credentials[:openstack_user_domain]).to eq('acme.com')
         expect(credentials[:openstack_project_domain]).to eq('R&D')
+        expect(credentials[:openstack_project_name]).to eq('Team_test_abc')
       end
     end
 

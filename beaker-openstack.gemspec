@@ -37,7 +37,7 @@ Gem::Specification.new do |s|
 
   # Run time dependencies
   s.add_runtime_dependency 'stringify-hash', '~> 0.0.0'
-  s.add_runtime_dependency 'fog-openstack', '~> 0.3.10'
+  s.add_runtime_dependency 'fog-openstack', '~> 1.0.0'
 
 end
 
