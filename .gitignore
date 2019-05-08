@@ -24,3 +24,4 @@ doc
 .vagrant/
 .vagrant_files/
 sut-files.tgz
+vendor/

@@ -16,6 +16,7 @@ module Beaker
     #@option options [String] :openstack_project_name The project name to access the OpenStack instance with (either this or openstack_tenant is required)
     #@option options [String] :openstack_region The region that each OpenStack instance should be provisioned on (optional)
     #@option options [String] :openstack_network The network that each OpenStack instance should be contacted through (required)
+    #@option options [Bool] :openstack_floating_ip Whether a floating IP should be allocated (required)
     #@option options [String] :openstack_keyname The name of an existing key pair that should be auto-loaded onto each
     #@option options [Hash] :security_group An array of security groups to associate with the instance
     #                                            OpenStack instance (optional)
@@ -34,6 +35,7 @@ module Beaker
       raise 'You must specify an Openstack username (:openstack_username) for OpenStack instances!' unless @options[:openstack_username]
       raise 'You must specify an Openstack auth URL (:openstack_auth_url) for OpenStack instances!' unless @options[:openstack_auth_url]
       raise 'You must specify an Openstack network (:openstack_network) for OpenStack instances!' unless @options[:openstack_network]
+      raise 'You must specify whether a floating IP (:openstack_floating_ip) should be used for OpenStack instances!' unless !@options[:openstack_floating_ip].nil?
 
       is_v3 = @options[:openstack_auth_url].include?('/v3/')
       raise 'You must specify an Openstack project name (:openstack_project_name) for OpenStack instances!' if is_v3 and !@options[:openstack_project_name]
@@ -210,7 +212,10 @@ module Beaker
 
     # Get a floating IP address to associate with the instance, try
     # to allocate a new one from the specified pool if none are available
-    def get_ip
+    #
+    # TODO(GiedriusS): convert to use @network_client. This API will be turned off
+    # completely very soon.
+    def get_floating_ip
       begin
         @logger.debug "Creating IP"
         ip = @compute_client.addresses.create
@@ -220,7 +225,6 @@ module Beaker
         @compute_client.allocate_address(@options[:floating_ip_pool])
         ip = @compute_client.addresses.find { |ip| ip.instance_id.nil? }
       end
-      raise 'Could not find or allocate an address' if not ip
       ip
     end
 
@@ -229,9 +233,15 @@ module Beaker
       @logger.notify "Provisioning OpenStack"
 
       @hosts.each do |host|
-        ip = get_ip
-        hostname = ip.ip.gsub('.','-')
-        host[:vmhostname] = hostname + '.rfc1918.puppetlabs.net'
+        if @options[:openstack_floating_ip]
+          ip = get_floating_ip
+          hostname = ip.ip.gsub('.','-')
+          host[:vmhostname] = hostname + '.rfc1918.puppetlabs.net'
+        else
+          hostname = ('a'..'z').to_a.shuffle[0, 10].join
+          host[:vmhostname] = hostname
+        end
+
         create_or_associate_keypair(host, hostname)
         @logger.debug "Provisioning #{host.name} (#{host[:vmhostname]})"
         options = {
@@ -265,9 +275,15 @@ module Beaker
           try += 1
         end
 
-        # Associate a public IP to the server
-        ip.server = vm
-        host[:ip] = ip.ip
+        if @options[:openstack_floating_ip]
+          # Associate a public IP to the VM
+          ip.server = vm
+          host[:ip] = ip.ip
+        else
+          # Get the first address of the VM that was just created just like in the
+          # OpenStack UI
+          host[:ip] = vm.addresses.first[1][0]["addr"]
+        end
 
         @logger.debug "OpenStack host #{host.name} (#{host[:vmhostname]}) assigned ip: #{host[:ip]}"
 

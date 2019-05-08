@@ -4,7 +4,7 @@ require 'fog/openstack'
 module Beaker
   describe Openstack do
 
-    let(:options) { make_opts.merge({'logger' => double().as_null_object}) }
+    let(:options) { make_opts.merge({'logger' => double().as_null_object, 'openstack_floating_ip' => true}) }
 
     let(:openstack) {
       Openstack.new(@hosts, options)
@@ -110,7 +110,7 @@ module Beaker
         # Simulate getting a dynamic IP from OpenStack to test key generation code
         # after provisioning. See _validate_new_key_pair in openstack/nova for reference
         mock_ip = double().as_null_object
-        allow( openstack ).to receive( :get_ip ).and_return( mock_ip )
+        allow( openstack ).to receive( :get_floating_ip ).and_return( mock_ip )
         allow( mock_ip ).to receive( :ip ).and_return( '172.16.0.1' )
         openstack.instance_eval('@options')['openstack_keyname'] = nil
 
@@ -125,7 +125,7 @@ module Beaker
         end
       end
 
-      it 'get_ip always allocates a new floatingip' do
+      it 'get_floating_ip always allocates a new floatingip' do
         # Assume beaker is being executed in parallel N times by travis (or similar).
         # IPs are allocated (but not associated) before an instance is created; it is
         # hightly possible the first instance will allocate a new IP and create an ssh
@@ -138,7 +138,7 @@ module Beaker
         allow(@compute_client).to receive(:addresses).and_return(mock_addresses)
         allow(mock_addresses).to receive(:create).and_return(mock_ip)
         expect(mock_addresses).to receive(:create).exactly(3).times
-        (1..3).each { openstack.get_ip }
+        (1..3).each { openstack.get_floating_ip }
       end
 
       context 'volume creation option' do
