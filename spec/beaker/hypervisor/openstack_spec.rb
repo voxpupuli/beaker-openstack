@@ -52,6 +52,7 @@ module Beaker
         expect(credentials[:openstack_user_domain]).to eq('acme.com')
         expect(credentials[:openstack_project_domain]).to eq('R&D')
         expect(credentials[:openstack_project_name]).to eq('Team_test_abc')
+        expect(credentials[:openstack_tenant]).to be_nil
       end
     end
 
