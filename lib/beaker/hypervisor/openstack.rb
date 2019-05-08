@@ -67,13 +67,13 @@ module Beaker
       @compute_client ||= Fog::Compute.new(@credentials)
 
       if not @compute_client
-        raise "Unable to create OpenStack Compute instance (api key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]})"
+        raise "Unable to create OpenStack Compute instance (api key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]}, project_name: #{@options[:openstack_project_name]})"
       end
 
       @network_client ||= Fog::Network.new(@credentials)
 
       if not @network_client
-        raise "Unable to create OpenStack Network instance (api_key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]})"
+        raise "Unable to create OpenStack Network instance (api key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]}, project_name: #{@options[:openstack_project_name]})"
       end
 
       # Validate openstack_volume_support setting value, reset to boolean if passed via ENV value string
