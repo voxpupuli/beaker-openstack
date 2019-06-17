@@ -12,9 +12,11 @@ module Beaker
     #@option options [String] :openstack_api_key The key to access the OpenStack instance with (required)
     #@option options [String] :openstack_username The username to access the OpenStack instance with (required)
     #@option options [String] :openstack_auth_url The URL to access the OpenStack instance with (required)
-    #@option options [String] :openstack_tenant The tenant to access the OpenStack instance with (required)
+    #@option options [String] :openstack_tenant The tenant to access the OpenStack instance with (either this or openstack_project_name is required)
+    #@option options [String] :openstack_project_name The project name to access the OpenStack instance with (either this or openstack_tenant is required)
     #@option options [String] :openstack_region The region that each OpenStack instance should be provisioned on (optional)
     #@option options [String] :openstack_network The network that each OpenStack instance should be contacted through (required)
+    #@option options [Bool] :openstack_floating_ip Whether a floating IP should be allocated (required)
     #@option options [String] :openstack_keyname The name of an existing key pair that should be auto-loaded onto each
     #@option options [Hash] :security_group An array of security groups to associate with the instance
     #                                            OpenStack instance (optional)
@@ -32,8 +34,21 @@ module Beaker
       raise 'You must specify an Openstack API key (:openstack_api_key) for OpenStack instances!' unless @options[:openstack_api_key]
       raise 'You must specify an Openstack username (:openstack_username) for OpenStack instances!' unless @options[:openstack_username]
       raise 'You must specify an Openstack auth URL (:openstack_auth_url) for OpenStack instances!' unless @options[:openstack_auth_url]
-      raise 'You must specify an Openstack tenant (:openstack_tenant) for OpenStack instances!' unless @options[:openstack_tenant]
       raise 'You must specify an Openstack network (:openstack_network) for OpenStack instances!' unless @options[:openstack_network]
+      raise 'You must specify whether a floating IP (:openstack_floating_ip) should be used for OpenStack instances!' unless !@options[:openstack_floating_ip].nil?
+
+      is_v3 = @options[:openstack_auth_url].include?('/v3/')
+      raise 'You must specify an Openstack project name (:openstack_project_name) for OpenStack instances!' if is_v3 and !@options[:openstack_project_name]
+      raise 'You must specify an Openstack tenant (:openstack_tenant) for OpenStack instances!' if !is_v3 and !@options[:openstack_tenant]
+      raise 'Invalid option specified: v3 API expects :openstack_project_name, not :openstack_tenant for OpenStack instances!' if is_v3 and @options[:openstack_tenant]
+      raise 'Invalid option specified: v2 API expects :openstack_tenant, not :openstack_project_name for OpenStack instances!' if !is_v3 and @options[:openstack_project_name]
+
+      # Keystone version 3 changed the parameter names
+      if !is_v3
+        extra_credentials = {:openstack_tenant => @options[:openstack_tenant]}
+      else
+        extra_credentials = {:openstack_project_name => @options[:openstack_project_name]}
+      end
 
       # Common keystone authentication credentials
       @credentials = {
@@ -43,10 +58,10 @@ module Beaker
         :openstack_username => @options[:openstack_username],
         :openstack_tenant   => @options[:openstack_tenant],
         :openstack_region   => @options[:openstack_region],
-      }
+      }.merge(extra_credentials)
 
       # Keystone version 3 requires users and projects to be scoped
-      if @credentials[:openstack_auth_url].include?('/v3/')
+      if is_v3
         @credentials[:openstack_user_domain]    = @options[:openstack_user_domain] || 'Default'
         @credentials[:openstack_project_domain] = @options[:openstack_project_domain] || 'Default'
       end
@@ -54,13 +69,13 @@ module Beaker
       @compute_client ||= Fog::Compute.new(@credentials)
 
       if not @compute_client
-        raise "Unable to create OpenStack Compute instance (api key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]})"
+        raise "Unable to create OpenStack Compute instance (api key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]}, project_name: #{@options[:openstack_project_name]})"
       end
 
       @network_client ||= Fog::Network.new(@credentials)
 
       if not @network_client
-        raise "Unable to create OpenStack Network instance (api_key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]})"
+        raise "Unable to create OpenStack Network instance (api key: #{@options[:openstack_api_key]}, username: #{@options[:openstack_username]}, auth_url: #{@options[:openstack_auth_url]}, tenant: #{@options[:openstack_tenant]}, project_name: #{@options[:openstack_project_name]})"
       end
 
       # Validate openstack_volume_support setting value, reset to boolean if passed via ENV value string
@@ -197,17 +212,19 @@ module Beaker
 
     # Get a floating IP address to associate with the instance, try
     # to allocate a new one from the specified pool if none are available
-    def get_ip
+    #
+    # TODO(GiedriusS): convert to use @network_client. This API will be turned off
+    # completely very soon.
+    def get_floating_ip
       begin
         @logger.debug "Creating IP"
         ip = @compute_client.addresses.create
-      rescue Fog::Compute::OpenStack::NotFound
+      rescue Fog::OpenStack::Compute::NotFound
         # If there are no more floating IP addresses, allocate a
-        # new one and try again. 
+        # new one and try again.
         @compute_client.allocate_address(@options[:floating_ip_pool])
         ip = @compute_client.addresses.find { |ip| ip.instance_id.nil? }
       end
-      raise 'Could not find or allocate an address' if not ip
       ip
     end
 
@@ -216,9 +233,15 @@ module Beaker
       @logger.notify "Provisioning OpenStack"
 
       @hosts.each do |host|
-        ip = get_ip
-        hostname = ip.ip.gsub('.','-')
-        host[:vmhostname] = hostname + '.rfc1918.puppetlabs.net'
+        if @options[:openstack_floating_ip]
+          ip = get_floating_ip
+          hostname = ip.ip.gsub('.','-')
+          host[:vmhostname] = hostname + '.rfc1918.puppetlabs.net'
+        else
+          hostname = ('a'..'z').to_a.shuffle[0, 10].join
+          host[:vmhostname] = hostname
+        end
+
         create_or_associate_keypair(host, hostname)
         @logger.debug "Provisioning #{host.name} (#{host[:vmhostname]})"
         options = {
@@ -252,9 +275,15 @@ module Beaker
           try += 1
         end
 
-        # Associate a public IP to the server
-        ip.server = vm
-        host[:ip] = ip.ip
+        if @options[:openstack_floating_ip]
+          # Associate a public IP to the VM
+          ip.server = vm
+          host[:ip] = ip.ip
+        else
+          # Get the first address of the VM that was just created just like in the
+          # OpenStack UI
+          host[:ip] = vm.addresses.first[1][0]["addr"]
+        end
 
         @logger.debug "OpenStack host #{host.name} (#{host[:vmhostname]}) assigned ip: #{host[:ip]}"
 
