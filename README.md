@@ -40,32 +40,114 @@ We run beaker's base acceptance tests with this library to see if the hypervisor
 
 2. `OPENSTACK_KEY` - Path to private key that is used to SSH into Openstack VMs 
 
-You will need two hosts with same platform. A template of what hosts file is below:
+You will need at least two hosts defined in a nodeset file. An example comprehensive nodeset is below (note that not all parameters are required):
 
 ```yaml
+
 HOSTS:
-  host-1:
-    hypervisor: openstack
-    platform: <my_platform> 
-    user: <host_username>
-    image: <host_image>
+  master:
     roles:
       - agent
       - master
       - dashboard
       - database
+    hypervisor: openstack
+    platform: <my_platform> 
+    user: <host_username>
+    image: <host_image>
+    flavor: <host_flavor>
+    ssh:
+      user: cloud-user
+      password: <cloud-user_password>
+      auth_methods:
+        - password
+        - publickey
+      keys:
+        - <relative_path/public_key>
+    user_data: |
+      #cloud-config
+      output: {all: '| tee -a /var/log/cloud-init-output.log'}
+      disable_root: <True/False>
+      ssh_pwauth: <True/False>
+      chpasswd:
+        list: |
+           root:<root_password>
+           cloud-user:<cloud-user_password>
+        expire: False
+      runcmd:
+        - <my_optional_commands>
+
+  agent_1:
+    roles:
+      - agent
       - default
-  host-2:
     hypervisor: openstack
     platform: <my_platform>
     user: <host_username>
     image: <host_image>
-    roles:
-      - agent
+    flavor: <host_flavor>
+    ssh:
+      user: cloud-user
+      password: <cloud-user_password>
+      auth_methods:
+        - publickey
+      keys:
+        - <relative_path/public_key>
+      number_of_password_prompts: 0
+      keepalive: true
+      keepalive_interval: 5
+    user_data: |
+      #cloud-config
+      output: {all: '| tee -a /var/log/cloud-init-output.log'}
+      disable_root: <True/False>
+      ssh_pwauth: <True/False>
+      chpasswd:
+        list: |
+           root:<root_password>
+           cloud-user:<cloud-user_password>
+        expire: False
+      runcmd:
+        - <my_optional_commands>
+
 CONFIG:
+  log_level: <trace/debug/verbose/info/notify/warn>
+  trace_limit: 50
+  timesync: <true/false>
   nfs_server: none
   consoleport: 443
+  openstack_username: <insert_username>
+  openstack_api_key: <insert_password>
+#  openstack_project_name: <insert_project_name>     # alternatively use openstack_project_id
+  openstack_project_id: <insert_id>
+#  openstack_user_domain: <insert user_domain>       # alternatively use openstack_user_domain_id
+  openstack_user_domain_id: <insert_id>
+#  openstack_project_domain: <insert_project_domain> # alternatively use openstack_project_domain_id
+  openstack_project_domain_id: <insert_id>
+  openstack_auth_url: http://<keystone_ip>:5000/v3/
+  openstack_network: <insert_network>
+  openstack_keyname: <insert_key>
+  openstack_floating_ip: <true/false>
+  openstack_volume_support: <true/false>
+  security_group: ['default']
+  preserve_hosts: <always/onfail/onpass/never>
+  run_in_parallel: ['configure', 'install']
+  type: <foss/git/pe>
 ```
+
+Note that when using _id parameters, you must also match the parameter type across the following when domain is specified:
+- openstack_project_id
+- openstack_user_domain_id
+- openstack_project_domain_id 
+
+Further, you can opt to use a static master by setting the master's hypervisor to none, and identifying its location thus:
+```yaml
+    hypervisor: none
+    hostname: <master_hostname>
+    vmhostname: <master_hostname>
+    ip: <master_ip>
+```
+
+Additional parameter information is available at https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md
 
 There is a simple rake task to invoke acceptance test for the library once the two environment variables are set:
 ```bash
