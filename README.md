@@ -157,4 +157,3 @@ bundle exec rake test:acceptance
 # Contributing
 
 Please refer to puppetlabs/beaker's [contributing](https://github.com/puppetlabs/beaker/blob/master/CONTRIBUTING.md) guide.
-
