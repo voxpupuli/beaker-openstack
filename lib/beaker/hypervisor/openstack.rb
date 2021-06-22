@@ -14,6 +14,11 @@ module Beaker
     #@option options [String] :openstack_auth_url The URL to access the OpenStack instance with (required)
     #@option options [String] :openstack_tenant The tenant to access the OpenStack instance with (either this or openstack_project_name is required)
     #@option options [String] :openstack_project_name The project name to access the OpenStack instance with (either this or openstack_tenant is required)
+    #@option options [String] :openstack_project_id The project id to access the OpenStack instance with (alternative to openstack_project_name)
+    #@option options [String] :openstack_user_domain The user domain name to access the OpenStack instance with
+    #@option options [String] :openstack_user_domain_id The user domain id to access the OpenStack instance with (alternative to openstack_user_domain)
+    #@option options [String] :openstack_project_domain The project domain to access the OpenStack instance with
+    #@option options [String] :openstack_project_domain_id The project domain id to access the OpenStack instance with (alternative to openstack_project_domain)
     #@option options [String] :openstack_region The region that each OpenStack instance should be provisioned on (optional)
     #@option options [String] :openstack_network The network that each OpenStack instance should be contacted through (required)
     #@option options [Bool] :openstack_floating_ip Whether a floating IP should be allocated (required)
@@ -38,16 +43,25 @@ module Beaker
       raise 'You must specify whether a floating IP (:openstack_floating_ip) should be used for OpenStack instances!' unless !@options[:openstack_floating_ip].nil?
 
       is_v3 = @options[:openstack_auth_url].include?('/v3/')
-      raise 'You must specify an Openstack project name (:openstack_project_name) for OpenStack instances!' if is_v3 and !@options[:openstack_project_name]
       raise 'You must specify an Openstack tenant (:openstack_tenant) for OpenStack instances!' if !is_v3 and !@options[:openstack_tenant]
-      raise 'Invalid option specified: v3 API expects :openstack_project_name, not :openstack_tenant for OpenStack instances!' if is_v3 and @options[:openstack_tenant]
-      raise 'Invalid option specified: v2 API expects :openstack_tenant, not :openstack_project_name for OpenStack instances!' if !is_v3 and @options[:openstack_project_name]
+      raise 'You must specify an Openstack project name (:openstack_project_name) or Openstack project id (:openstack_project_id) for OpenStack instances!' if is_v3 and (!@options[:openstack_project_name] and !@options[:openstack_project_id])
+      raise 'You must specify either Openstack project name (:openstack_project_name) or Openstack project id (:openstack_project_id) not both!' if is_v3 and (@options[:openstack_project_name] and @options[:openstack_project_id])
+      raise 'You may specify either Openstack user domain (:openstack_user_domain) or Openstack user domain id (:openstack_user_domain_id) not both!' if is_v3 and (@options[:openstack_user_domain] and @options[:openstack_user_domain_id])
+      raise 'You may specify either Openstack project domain (:openstack_project_domain) or Openstack project domain id (:openstack_project_domain_id) not both!' if is_v3 and (@options[:openstack_project_domain] and @options[:openstack_project_domain_id])
+      raise 'Invalid option specified: v3 API expects :openstack_project_name or :openstack_project_id, not :openstack_tenant for OpenStack instances!' if is_v3 and @options[:openstack_tenant]
+      raise 'Invalid option specified: v2 API expects :openstack_tenant, not :openstack_project_name or :openstack_project_id for OpenStack instances!' if !is_v3 and (@options[:openstack_project_name] or @options[:openstack_project_id])
+      # Ensure that _id and non _id params are not mixed (due to bug in fog-openstack)
+      raise 'You must not mix _id values non _id (name) values. Please use the same type for (:openstack_project_), (:openstack_user_domain) and (:openstack_project_domain)!' if is_v3 and (@options[:openstack_project_name] or @options[:openstack_user_domain] or @options[:openstack_project_domain]) and (@options[:openstack_project_id] or @options[:openstack_user_domain_id] or @options[:openstack_project_domain_id])
 
       # Keystone version 3 changed the parameter names
       if !is_v3
         extra_credentials = {:openstack_tenant => @options[:openstack_tenant]}
       else
-        extra_credentials = {:openstack_project_name => @options[:openstack_project_name]}
+        if @options[:openstack_project_id]
+          extra_credentials = {:openstack_project_id => @options[:openstack_project_id]}
+        else
+          extra_credentials = {:openstack_project_name => @options[:openstack_project_name]}
+        end
       end
 
       # Common keystone authentication credentials
@@ -62,8 +76,16 @@ module Beaker
 
       # Keystone version 3 requires users and projects to be scoped
       if is_v3
-        @credentials[:openstack_user_domain]    = @options[:openstack_user_domain] || 'Default'
-        @credentials[:openstack_project_domain] = @options[:openstack_project_domain] || 'Default'
+        if @options[:openstack_user_domain_id]
+          @credentials[:openstack_user_domain_id] = @options[:openstack_user_domain_id]
+        else
+          @credentials[:openstack_user_domain]    = @options[:openstack_user_domain] || 'Default'
+        end
+        if @options[:openstack_project_domain_id]
+          @credentials[:openstack_project_domain_id] = @options[:openstack_project_domain_id]
+        else
+          @credentials[:openstack_project_domain]    = @options[:openstack_project_domain] || 'Default'
+        end        
       end
 
       @compute_client ||= Fog::Compute.new(@credentials)
