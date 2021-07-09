@@ -19,7 +19,6 @@ group :acceptance_testing do
   gem "beaker", *location_for(ENV['BEAKER_VERSION'] || '~> 4.0')
 end
 
-
-if File.exists? "#{__FILE__}.local"
-  eval(File.read("#{__FILE__}.local"), binding)
+group :release do
+  gem 'github_changelog_generator', :require => false
 end

@@ -58,6 +58,7 @@ task 'test:acceptance' => 'test:acceptance:quick'
 # global defaults
 task :test => 'test:spec'
 task :default => :test
+task :spec => 'test:spec'
 
 ###########################################################
 #
