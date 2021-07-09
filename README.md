@@ -1,5 +1,12 @@
 # beaker-openstack
 
+[![License](https://img.shields.io/github/license/voxpupuli/beaker-openstack.svg)](https://github.com/voxpupuli/beaker-openstack/blob/master/LICENSE)
+[![Test](https://github.com/voxpupuli/beaker-openstack/actions/workflows/test.yml/badge.svg)](https://github.com/voxpupuli/beaker-openstack/actions/workflows/test.yml)
+[![Release](https://github.com/voxpupuli/beaker-openstack/actions/workflows/release.yml/badge.svg)](https://github.com/voxpupuli/beaker-openstack/actions/workflows/release.yml)
+[![RubyGem Version](https://img.shields.io/gem/v/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
+[![RubyGem Downloads](https://img.shields.io/gem/dt/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
+[![Donated by Puppet Inc](https://img.shields.io/badge/donated%20by-Puppet%20Inc-fb7047.svg)](#transfer-notice)
+
 Beaker library to use openstack hypervisor
 
 # How to use this wizardry
