@@ -165,3 +165,17 @@ namespace :docs do
     end
   end
 end
+
+begin
+  require 'rubygems'
+  require 'github_changelog_generator/task'
+
+  GitHubChangelogGenerator::RakeTask.new :changelog do |config|
+    config.header = "# Changelog\n\nAll notable changes to this project will be documented in this file."
+    config.exclude_labels = %w{duplicate question invalid wontfix wont-fix skip-changelog modulesync}
+    config.user = 'voxpupuli'
+    config.project = 'beaker-openstack'
+    config.future_release = Gem::Specification.load("#{config.project}.gemspec").version
+  end
+rescue LoadError
+end
