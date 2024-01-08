@@ -250,26 +250,57 @@ module Beaker
       ip
     end
 
-    #Create new instances in OpenStack
+    # Create new instances in OpenStack. create_in_parallel option is used to determine how instances are created
     def provision
       @logger.notify "Provisioning OpenStack"
-
+    
+      if @options[:create_in_parallel]
+        provision_parallel
+      else
+        provision_sequential
+      end
+    end
+    
+    def provision_parallel
+      # Array to store threads
+      threads = @hosts.map do |host|
+        Thread.new do
+          begin
+            create_instance(host)
+          rescue => e
+            # Handle exceptions in the thread
+            puts "Thread #{host} failed with error: #{e.message}"
+          end
+        end
+      end
+    
+      # Wait for all threads to finish
+      threads.each(&:join)
+    end
+    
+    def provision_sequential
       @hosts.each do |host|
+        create_instance(host)
+      end
+    end
+    
+    def create_instance(host)
+      begin
         if @options[:openstack_floating_ip]
           ip = get_floating_ip
-          hostname = ip.ip.gsub('.','-')
+          hostname = ip.ip.gsub('.', '-')
           host[:vmhostname] = hostname + '.rfc1918.puppetlabs.net'
         else
           hostname = ('a'..'z').to_a.shuffle[0, 10].join
           host[:vmhostname] = hostname
         end
-
+    
         create_or_associate_keypair(host, hostname)
         @logger.debug "Provisioning #{host.name} (#{host[:vmhostname]})"
         options = {
           :flavor_ref => flavor(host[:flavor]).id,
           :image_ref  => image(host[:image]).id,
-          :nics       => [ {'net_id' => network(@options[:openstack_network]).id } ],
+          :nics       => [{'net_id' => network(@options[:openstack_network]).id}],
           :name       => host[:vmhostname],
           :hostname   => host[:vmhostname],
           :user_data  => host[:user_data] || "#cloud-config\nmanage_etc_hosts: true\n",
@@ -277,11 +308,11 @@ module Beaker
         }
         options[:security_groups] = security_groups(@options[:security_group]) unless @options[:security_group].nil?
         vm = @compute_client.servers.create(options)
-
-        #wait for the new instance to start up
+    
+        # Wait for the new instance to start up
         try = 1
         attempts = @options[:timeout].to_i / SLEEPWAIT
-
+    
         while try <= attempts
           begin
             vm.wait_for(5) { ready? }
@@ -296,7 +327,7 @@ module Beaker
           sleep SLEEPWAIT
           try += 1
         end
-
+    
         if @options[:openstack_floating_ip]
           # Associate a public IP to the VM
           ip.server = vm
@@ -306,27 +337,29 @@ module Beaker
           # OpenStack UI
           host[:ip] = vm.addresses.first[1][0]["addr"]
         end
-
+    
         @logger.debug "OpenStack host #{host.name} (#{host[:vmhostname]}) assigned ip: #{host[:ip]}"
-
-        #set metadata
+    
+        # Set metadata
         vm.metadata.update({:jenkins_build_url => @options[:jenkins_build_url].to_s,
                             :department        => @options[:department].to_s,
                             :project           => @options[:project].to_s })
         @vms << vm
-
-        # Wait for the host to accept ssh logins
+    
+        # Wait for the host to accept SSH logins
         host.wait_for_port(22)
-
-        #enable root if user is not root
+    
+        # Enable root if the user is not root
         enable_root(host)
-
+    
         provision_storage(host, vm) if @options[:openstack_volume_support]
         @logger.notify "OpenStack Volume Support Disabled, can't provision volumes" if not @options[:openstack_volume_support]
+      rescue => e
+        # Handle exceptions in the thread
+        puts "Thread #{host} failed with error: #{e.message}"
       end
-
+    
       hack_etc_hosts @hosts, @options
-
     end
 
     #Destroy any OpenStack instances
