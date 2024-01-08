@@ -137,6 +137,7 @@ CONFIG:
   openstack_volume_support: <true/false>
   security_group: ['default']
   preserve_hosts: <always/onfail/onpass/never>
+  create_in_parallel: true
   run_in_parallel: ['configure', 'install']
   type: <foss/git/pe>
 ```
@@ -153,6 +154,10 @@ Further, you can opt to use a static master by setting the master's hypervisor t
     vmhostname: <master_hostname>
     ip: <master_ip>
 ```
+
+Additionally, you can set instance creation to occur in parallel instead of sequentially via this CONFIG entry:
+```
+create_in_parallel: true
 
 Additional parameter information is available at https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md
 
