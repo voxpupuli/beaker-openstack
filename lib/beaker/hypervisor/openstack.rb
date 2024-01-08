@@ -358,9 +358,6 @@ module Beaker
 
       provision_storage(host, vm) if @options[:openstack_volume_support]
       @logger.notify "OpenStack Volume Support Disabled, can't provision volumes" if not @options[:openstack_volume_support]
-    rescue => e
-      # Handle exceptions in the thread
-      puts "Thread #{host} failed with error: #{e.message}"
 
       hack_etc_hosts @hosts, @options
     end
