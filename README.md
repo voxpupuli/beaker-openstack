@@ -156,8 +156,9 @@ Further, you can opt to use a static master by setting the master's hypervisor t
 ```
 
 Additionally, you can set instance creation to occur in parallel instead of sequentially via this CONFIG entry:
-```
+```yaml
 create_in_parallel: true
+```
 
 Additional parameter information is available at https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md
 
