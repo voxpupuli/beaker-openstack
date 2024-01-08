@@ -256,10 +256,10 @@ module Beaker
       if @options[:create_in_parallel]
         # Enable abort on exception for threads
         Thread.abort_on_exception = true
-        @logger.notify "Creating instances in parallel"
+        puts "\nCreating instances in parallel\n\n"
         provision_parallel
       else
-        @logger.notify "Creating instances sequentially"
+        puts "\nCreating instances sequentially\n\n"
         provision_sequential
       end
     end
