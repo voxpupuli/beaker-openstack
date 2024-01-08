@@ -256,8 +256,10 @@ module Beaker
       if @options[:create_in_parallel]
         # Enable abort on exception for threads
         Thread.abort_on_exception = true
+        @logger.notify "Creating instances in parallel"
         provision_parallel
       else
+        @logger.notify "Creating instances sequentially"
         provision_sequential
       end
     end
@@ -271,7 +273,8 @@ module Beaker
             create_instance_resources(host)
           rescue => e
             # Handle exceptions in the thread
-            puts "Thread #{host} failed with error: #{e.message}"
+            message = "Thread #{host} failed with error: #{e.message}"
+            puts message; $stderr.puts message
           end
         end
       end
@@ -360,7 +363,8 @@ module Beaker
       @logger.notify "OpenStack Volume Support Disabled, can't provision volumes" if not @options[:openstack_volume_support]
     rescue => e
       # Handle exceptions in the thread
-      puts "Thread #{host} failed with error: #{e.message}"
+      message = "Thread #{host} failed with error: #{e.message}"
+      puts message; $stderr.puts message
 
       hack_etc_hosts @hosts, @options
     end
