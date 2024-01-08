@@ -254,6 +254,8 @@ module Beaker
     def provision
       @logger.notify "Provisioning OpenStack"
       if @options[:create_in_parallel]
+        # Enable abort on exception for threads
+        Thread.abort_on_exception = true
         provision_parallel
       else
         provision_sequential
@@ -270,12 +272,10 @@ module Beaker
           rescue => e
             # Handle exceptions in the thread
             puts "Thread #{host} failed with error: #{e.message}"
-            # Raise an exception in the main thread to stop further execution
-            Thread.main.raise(e)
           end
         end
       end
-    
+
       # Wait for all threads to finish
       threads.each(&:join)
     end
