@@ -1,6 +1,3 @@
-## THIS HAS ISSUES WITH WINDOWS HOSTS AS THEY REBOOT WHEN THE BATCH HAS RUN FASTER
-
-
 module Beaker
   #Beaker support for OpenStack
   #This code is EXPERIMENTAL!
@@ -266,18 +263,23 @@ module Beaker
     # Parallel creation wrapper
     def provision_parallel
       # Array to store threads
-      @hosts.map do |host|
+      threads = @hosts.map do |host|
         Thread.new do
           begin
             create_instance_resources(host)
           rescue => e
             # Handle exceptions in the thread
             puts "Thread #{host} failed with error: #{e.message}"
+            # Raise an exception in the main thread to stop further execution
+            Thread.main.raise(e)
           end
         end
-      end.each(&:join)
-    end
+      end
     
+      # Wait for all threads to finish
+      threads.each(&:join)
+    end
+
     # Sequential creation wrapper
     def provision_sequential
       @hosts.each do |host|
@@ -296,7 +298,7 @@ module Beaker
         hostname = ('a'..'z').to_a.shuffle[0, 10].join
         host[:vmhostname] = hostname
       end
-    
+
       create_or_associate_keypair(host, hostname)
       @logger.debug "Provisioning #{host.name} (#{host[:vmhostname]})"
       options = {
@@ -310,11 +312,11 @@ module Beaker
       }
       options[:security_groups] = security_groups(@options[:security_group]) unless @options[:security_group].nil?
       vm = @compute_client.servers.create(options)
-    
+
       # Wait for the new instance to start up
       try = 1
       attempts = @options[:timeout].to_i / SLEEPWAIT
-    
+
       while try <= attempts
         begin
           vm.wait_for(5) { ready? }
@@ -329,7 +331,7 @@ module Beaker
         sleep SLEEPWAIT
         try += 1
       end
-    
+
       if @options[:openstack_floating_ip]
         # Associate a public IP to the VM
         ip.server = vm
@@ -339,7 +341,7 @@ module Beaker
         # OpenStack UI
         host[:ip] = vm.addresses.first[1][0]["addr"]
       end
-    
+
       @logger.debug "OpenStack host #{host.name} (#{host[:vmhostname]}) assigned ip: #{host[:ip]}"
     
       # Set metadata
@@ -347,19 +349,19 @@ module Beaker
                           :department        => @options[:department].to_s,
                           :project           => @options[:project].to_s })
       @vms << vm
-    
+
       # Wait for the host to accept SSH logins
       host.wait_for_port(22)
-    
+
       # Enable root if the user is not root
       enable_root(host)
-    
+
       provision_storage(host, vm) if @options[:openstack_volume_support]
       @logger.notify "OpenStack Volume Support Disabled, can't provision volumes" if not @options[:openstack_volume_support]
     rescue => e
       # Handle exceptions in the thread
       puts "Thread #{host} failed with error: #{e.message}"
-    
+
       hack_etc_hosts @hosts, @options
     end
 
