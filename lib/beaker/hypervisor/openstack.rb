@@ -254,6 +254,8 @@ module Beaker
     def provision
       @logger.notify "Provisioning OpenStack"
       if @options[:create_in_parallel]
+        # Enable abort on exception for threads
+        Thread.abort_on_exception = true
         puts "\n"
         @logger.notify "Creating instances in parallel"
         puts "\n"
@@ -273,13 +275,9 @@ module Beaker
         Thread.new do
           begin
             create_instance_resources(host)
-          rescue => e
-            # Handle exceptions in the thread
-            @logger.error "Thread #{host} failed with error: #{e.message}"
           end
         end
       end
-
       # Wait for all threads to finish
       threads.each(&:join)
     end
@@ -362,14 +360,22 @@ module Beaker
 
       provision_storage(host, vm) if @options[:openstack_volume_support]
       @logger.notify "OpenStack Volume Support Disabled, can't provision volumes" if not @options[:openstack_volume_support]
+
+    # Handle exceptions in the thread
     rescue => e
-      # Handle exceptions in the thread
       @logger.error "Thread #{host} failed with error: #{e.message}"
+      # Call cleanup function to delete orphaned hosts
+      cleanup
+      # Pass the error to the main thread to terminate all threads
+      Thread.main.raise(e)
+      # Terminate the current thread (to prevent hack_etc_hosts trying to run after error raised)
+      Thread.kill(Thread.current)
 
       hack_etc_hosts @hosts, @options
+
     end
 
-    #Destroy any OpenStack instances
+    # Destroy any OpenStack instances
     def cleanup
       @logger.notify "Cleaning up OpenStack"
       @vms.each do |vm|
@@ -401,7 +407,7 @@ module Beaker
       end
     end
 
-    # enable root on a single host (the current one presumably) but only
+    # Enable root on a single host (the current one presumably) but only
     # if the username isn't 'root'
     def enable_root(host)
       if host['user'] != 'root'
