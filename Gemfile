@@ -2,23 +2,7 @@ source ENV['GEM_SOURCE'] || "https://rubygems.org"
 
 gemspec
 
-def location_for(place, fake_version = nil)
-  if place =~ /^git:([^#]*)#(.*)/
-    [fake_version, { :git => $1, :branch => $2, :require => false }].compact
-  elsif place =~ /^file:\/\/(.*)/
-    ['>= 0', { :path => File.expand_path($1), :require => false }]
-  else
-    [place, { :require => false }]
-  end
-end
-
-
-# We don't put beaker in as a test dependency because we
-# don't want to create a transitive dependency
-group :acceptance_testing do
-  gem "beaker", *location_for(ENV['BEAKER_VERSION'] || '~> 4.0')
-end
-
-group :release do
-  gem 'github_changelog_generator', :require => false
+group :release, optional: true do
+  gem 'faraday-retry', '~> 2.1', require: false
+  gem 'github_changelog_generator','~> 1.16', '>= 1.16.4', require: false
 end

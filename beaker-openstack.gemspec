@@ -10,17 +10,19 @@ Gem::Specification.new do |s|
   s.homepage    = 'https://github.com/voxpupuli/beaker-openstack'
   s.summary     = %q{Beaker DSL Extension Helpers!}
   s.description = %q{For use for the Beaker acceptance testing tool}
-  s.license     = 'Apache2'
+  s.license     = 'Apache-2.0'
 
   s.files         = `git ls-files`.split("\n")
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
 
+  s.required_ruby_version = '>= 2.7', '< 4'
+
   # Testing dependencies
   s.add_development_dependency 'rspec', '~> 3.0'
   s.add_development_dependency 'rspec-its'
-  s.add_development_dependency 'fakefs', '~> 1.3'
+  s.add_development_dependency 'fakefs', '~> 2.4'
   s.add_development_dependency 'rake', '>= 12.3.3'
   s.add_development_dependency 'simplecov'
   s.add_development_dependency 'pry', '~> 0.10'
@@ -33,6 +35,5 @@ Gem::Specification.new do |s|
   # Run time dependencies
   s.add_runtime_dependency 'stringify-hash', '~> 0.0.0'
   s.add_runtime_dependency 'fog-openstack', '~> 1.0.0'
-
+  s.add_runtime_dependency 'beaker', '~> 5.6'
 end
-
