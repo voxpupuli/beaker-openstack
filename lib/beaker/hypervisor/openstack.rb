@@ -273,9 +273,7 @@ module Beaker
       # Array to store threads
       threads = @hosts.map do |host|
         Thread.new do
-          begin
-            create_instance_resources(host)
-          end
+          create_instance_resources(host)
         end
       end
       # Wait for all threads to finish
