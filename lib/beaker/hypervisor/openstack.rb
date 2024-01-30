@@ -252,18 +252,13 @@ module Beaker
 
     # Create new instances in OpenStack, depending on if create_in_parallel is true or not
     def provision
-      @logger.notify "Provisioning OpenStack"
       if @options[:create_in_parallel]
         # Enable abort on exception for threads
         Thread.abort_on_exception = true
-        puts "\n"
-        @logger.notify "Creating instances in parallel"
-        puts "\n"
+        @logger.notify "Provisioning OpenStack in parallel"
         provision_parallel
       else
-        puts "\n"
-        @logger.notify "Creating instances sequentially"
-        puts "\n"
+        @logger.notify "Provisioning OpenStack sequentially"
         provision_sequential
       end
     end
