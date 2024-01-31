@@ -261,6 +261,7 @@ module Beaker
         @logger.notify "Provisioning OpenStack sequentially"
         provision_sequential
       end
+      hack_etc_hosts @hosts, @options
     end
 
     # Parallel creation wrapper
@@ -363,9 +364,6 @@ module Beaker
       Thread.main.raise(e)
       # Terminate the current thread (to prevent hack_etc_hosts trying to run after error raised)
       Thread.kill(Thread.current)
-
-      hack_etc_hosts @hosts, @options
-
     end
 
     # Destroy any OpenStack instances
