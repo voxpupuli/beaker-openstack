@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0](https://github.com/voxpupuli/beaker-openstack/tree/2.0.0) (2024-02-03)
+
+[Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/1.0.0...2.0.0)
+
+**Breaking changes:**
+
+- Drop EoL Ruby 2.4/2.5/2.6 support [\#22](https://github.com/voxpupuli/beaker-openstack/pull/22) ([bastelfreak](https://github.com/bastelfreak))
+
+**Implemented enhancements:**
+
+- Add parallel instance creation opt-in option [\#20](https://github.com/voxpupuli/beaker-openstack/pull/20) ([canihavethisone](https://github.com/canihavethisone))
+
+**Merged pull requests:**
+
+- gemspec: Fix typo in Apache-2.0 license name [\#27](https://github.com/voxpupuli/beaker-openstack/pull/27) ([bastelfreak](https://github.com/bastelfreak))
+- Apply best practices for our changelog generator [\#26](https://github.com/voxpupuli/beaker-openstack/pull/26) ([bastelfreak](https://github.com/bastelfreak))
+- Cleanup Gemfile, add beaker as runtime dependency [\#24](https://github.com/voxpupuli/beaker-openstack/pull/24) ([bastelfreak](https://github.com/bastelfreak))
+- dependabot: check for github actions and bundler [\#21](https://github.com/voxpupuli/beaker-openstack/pull/21) ([bastelfreak](https://github.com/bastelfreak))
+- Update fakefs requirement from ~\> 1.3 to ~\> 2.4 [\#19](https://github.com/voxpupuli/beaker-openstack/pull/19) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [1.0.0](https://github.com/voxpupuli/beaker-openstack/tree/1.0.0) (2021-07-09)
 
 [Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/0.3.0...1.0.0)
