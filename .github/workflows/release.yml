@@ -1,13 +1,14 @@
 name: Release
 
 on:
-  create:
-    ref_type: tag
+  push:
+    tags:
+      - '*'
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    if: github.repository == 'voxpupuli/beaker-openstack'
+    if: github.repository_owner == 'voxpupuli'
     steps:
       - uses: actions/checkout@v4
       - name: Install Ruby 3.0
@@ -15,9 +16,9 @@ jobs:
         with:
           ruby-version: '3.0'
         env:
-          BUNDLE_WITHOUT: release
+          BUNDLE_WITHOUT: release:development
       - name: Build gem
-        run: gem build *.gemspec
+        run: gem build --strict --verbose *.gemspec
       - name: Publish gem to rubygems.org
         run: gem push *.gem
         env:
