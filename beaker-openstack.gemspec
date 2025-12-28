@@ -17,12 +17,13 @@ Gem::Specification.new do |s|
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
 
+  # Ruby compatibility
   s.required_ruby_version = '>= 2.7', '< 4'
 
   # Testing dependencies
   s.add_development_dependency 'rspec', '~> 3.0'
   s.add_development_dependency 'rspec-its'
-  s.add_development_dependency 'fakefs', '~> 2.4'
+  s.add_development_dependency 'fakefs', '>= 2.4', '< 4'
   s.add_development_dependency 'rake', '>= 12.3.3'
   s.add_development_dependency 'simplecov'
   s.add_development_dependency 'pry', '~> 0.10'
@@ -32,8 +33,8 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'markdown'
   s.add_development_dependency 'thin'
 
-  # Run time dependencies
+  # Runtime dependencies
   s.add_runtime_dependency 'stringify-hash', '~> 0.0.0'
-  s.add_runtime_dependency 'fog-openstack', '~> 1.0.0'
-  s.add_runtime_dependency 'beaker', '~> 5.6'
+  s.add_runtime_dependency 'fog-openstack', '~> 1.0'
+  s.add_runtime_dependency 'beaker', '>= 5.6', '< 8'
 end
