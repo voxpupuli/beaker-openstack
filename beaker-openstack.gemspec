@@ -18,7 +18,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib"]
 
   # Ruby compatibility
-  s.required_ruby_version = '>= 2.7', '< 4'
+  s.required_ruby_version = '>= 2.7', '< 5'
 
   # Testing dependencies
   s.add_development_dependency 'rspec', '~> 3.0'
