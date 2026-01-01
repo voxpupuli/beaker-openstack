@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.1.0](https://github.com/voxpupuli/beaker-openstack/tree/2.1.0) (2025-12-31)
+
+[Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/2.0.0...2.1.0)
+
+**Implemented enhancements:**
+
+- Allow beaker-openstack to run with Beaker 6.x and 7.x [\#31](https://github.com/voxpupuli/beaker-openstack/pull/31) ([canihavethisone](https://github.com/canihavethisone))
+
+**Merged pull requests:**
+
+- CI: Generate ruby matrix dynamically & Add Ruby 4 support [\#32](https://github.com/voxpupuli/beaker-openstack/pull/32) ([bastelfreak](https://github.com/bastelfreak))
+
 ## [2.0.0](https://github.com/voxpupuli/beaker-openstack/tree/2.0.0) (2024-02-03)
 
 [Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/1.0.0...2.0.0)
