@@ -136,7 +136,6 @@ module Beaker
     end
 
     # @!group Lookup Methods
-
     # Lookup flavor by name
     def flavor(f)
       @logger.debug "Looking up flavor '#{f}'"
@@ -243,13 +242,14 @@ module Beaker
     end
 
     # @!group Provision Methods
-
     # Main provisioning entrypoint
     def provision
       if @options[:create_in_parallel]
         Thread.abort_on_exception = true
+        @logger.notify "Provisioning OpenStack in parallel"
         provision_parallel
       else
+        @logger.notify "Provisioning OpenStack sequentially"
         provision_sequential
       end
 
