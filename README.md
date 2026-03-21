@@ -128,8 +128,9 @@ HOSTS:
     hypervisor: openstack
     image: rhel-9-latest
     flavor: m1.large
-    use_volume: true
-    volume_size: 40
+    root_volume:
+      size: 20
+      delete_on_termination: true
     ssh:
       user: cloud-user
 
@@ -146,13 +147,13 @@ HOSTS:
     hypervisor: openstack
     image: ubuntu-22.04
     flavor: m1.large
-    use_volume: true
-    volume_size: 20
-    additional_volumes:
-      - size: 50
-        type: fast-ssd
-      - size: 200
-        type: bulk-storage
+    root_volume:
+      size: 20
+      delete_on_termination: true
+    volumes:
+      data1:
+        size: 20
+        description: second-volume
 ```
 
 ---------------------------------------------------------------------
