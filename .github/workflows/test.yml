@@ -2,10 +2,12 @@ name: Test
 
 on:
   workflow_dispatch:
-  pull_request: {}
   push:
     branches:
-      - master
+      - '**'
+  pull_request:
+    branches:
+      - '**'
 
 permissions:
   contents: read
