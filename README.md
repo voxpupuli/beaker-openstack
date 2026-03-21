@@ -232,18 +232,18 @@ At least one host must use the OpenStack hypervisor.
 
 # Troubleshooting
 
-##Authentication failures:
+## Authentication failures:
 Ensure all three Keystone v3 IDs are correct:
 - `openstack_project_id`
 - `openstack_user_domain_id`
 - `openstack_project_domain_id`
 
-##Floating IP not assigned:
+## Floating IP not assigned:
 Check:
 - Neutron external network exists
 - Security groups allow SSH ingress
 
-##Volume creation errors:
+## Volume creation errors:
 Verify:
 - Cinder backend is available
 - Volume type exists (if specified)
