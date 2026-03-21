@@ -8,7 +8,7 @@
 
 Beaker hypervisor support for provisioning hosts on modern OpenStack clouds.
 
-This version of **beaker-openstack** has been fully modernized and now supports:
+This version of beaker-openstack has been fully modernized and now supports:
 
 - Keystone v3 authentication (v2 removed)
 - Neutron networking only (Nova-network removed)
@@ -20,17 +20,17 @@ This version of **beaker-openstack** has been fully modernized and now supports:
 - Predictable provisioning and teardown behavior
 - Updated RSpec suite and acceptance test flow
 
----
+---------------------------------------------------------------------
 
 # Overview
 
-`beaker-openstack` provides an OpenStack hypervisor implementation for Beaker.
+beaker-openstack provides an OpenStack hypervisor implementation for Beaker.
 It provisions OpenStack instances, assigns floating IPs, manages keypairs, and optionally provisions volumes.
 
-Beaker automatically loads hypervisors based on the `hypervisor:` field in your nodeset.
-No explicit `require` is needed.
+Beaker automatically loads hypervisors based on the "hypervisor:" field in your nodeset.
+No explicit require is needed.
 
----
+---------------------------------------------------------------------
 
 # Compatibility
 
@@ -40,51 +40,61 @@ This gem remains compatible, but Beaker 3 is no longer maintained.
 
 ## Beaker 4.x and later
 Beaker 4.x removed all bundled hypervisors.
-You **must** include this gem explicitly:
+You must include this gem explicitly:
 
-# Gemfile
+Gemfile:
+```
 gem 'beaker', '~> 4.0'
 gem 'beaker-openstack', '~> 3.0'
+```
+---------------------------------------------------------------------
 
 # Installation
-Add to your Gemfile or gemspec:
-`gem 'beaker-openstack'`
 
-Then:
-`bundle install`
+Add to your Gemfile or gemspec:
+```
+gem 'beaker-openstack'
+```
+Then install:
+```
+bundle install
+```
+
+---------------------------------------------------------------------
 
 # Configuration
+
 All OpenStack configuration is provided under the CONFIG: section of your nodeset.
 
-### Required parameters
+Required parameters:
+```
+- openstack_auth_url
+- openstack_username
+- openstack_api_key
+- openstack_project_id
+- openstack_user_domain_id
+- openstack_project_domain_id
+- openstack_network
+- openstack_keyname
+```
 
-| Parameter | Example |
-| :--- | :--- |
-| openstack_auth_url | https://keystone.example.com:5000/v3 |
-| openstack_username | |
-| openstack_api_key | |
-| openstack_project_id | |
-| openstack_user_domain_id | |
-| openstack_project_domain_id | |
-| openstack_network | |
-| openstack_keyname | |
+Optional parameters:
+```
+- openstack_floating_ip
+- openstack_volume_support
+- openstack_volume_size
+- openstack_additional_volumes
+- security_group
+- preserve_hosts
+- create_in_parallel
+- run_in_parallel
+```
 
-### Optional parameters
+---------------------------------------------------------------------
 
-| Parameter | Example |
-| :--- | :--- |
-| openstack_floating_ip | true |
-| openstack_volume_support | true |
-| openstack_volume_size | |
-| openstack_additional_volumes | { size: <GB>, type: <string> } |
-| security_group | |
-| preserve_hosts | alwayson \| failonpass \| never |
-| create_in_parallel | |
-| run_in_parallel | |
+# Nodeset Examples
 
-##Nodeset Examples
-#Minimal example
-
+Minimal example:
 ```
 HOSTS:
   agent:
@@ -109,7 +119,7 @@ CONFIG:
   openstack_floating_ip: true
 ```
 
-#Boot-from-volume example
+Boot-from-volume example:
 ```
 HOSTS:
   master:
@@ -127,8 +137,7 @@ CONFIG:
   openstack_volume_support: true
 ```
 
-
-#Additional volumes example
+Additional volumes example:
 ```
 HOSTS:
   db:
@@ -146,25 +155,32 @@ HOSTS:
         type: bulk-storage
 ```
 
+---------------------------------------------------------------------
 
-#Volume Provisioning
+# Volume Provisioning
+
 When use_volume: true is set:
 - The instance boots from a Cinder volume instead of ephemeral disk.
 - The volume is created using the image specified in the nodeset.
 - The volume size defaults to the image minimum size unless overridden by volume_size.
-Additional volumes are created and attached after the instance becomes ACTIVE.
+- Additional volumes are created and attached after the instance becomes ACTIVE.
 
-#Floating IP Allocation
+---------------------------------------------------------------------
+
+# Floating IP Allocation
+
 Floating IPs are allocated using Neutron:
 - If openstack_floating_ip: true, a floating IP is created or reused.
 - The IP is attached to the instance’s primary port.
 - Allocation is deterministic and logged clearly.
 
-#Spec Tests
+---------------------------------------------------------------------
+
+# Spec Tests
+
 RSpec tests live under spec/.
 Run them with:
-bundle exec rake test:spec
-
+`bundle exec rake test:spec`
 
 The spec suite includes:
 - Credential validation
@@ -173,40 +189,50 @@ The spec suite includes:
 - Floating IP allocation
 - Error handling and retries
 
-#Acceptance Tests
+---------------------------------------------------------------------
+
+# Acceptance Tests
+
 Acceptance tests require:
 - OPENSTACK_HOSTS — path to a nodeset using the OpenStack hypervisor
 - OPENSTACK_KEY — path to the private SSH key used for the instances
+
 Run acceptance tests:
 bundle exec rake test:acceptance
 
-
 A valid nodeset must include at least one host using the OpenStack hypervisor.
 
-##Troubleshooting
-#Authentication failures
+---------------------------------------------------------------------
+
+# Troubleshooting
+
+Authentication failures:
 Ensure all three Keystone v3 IDs are correct:
 - openstack_project_id
 - openstack_user_domain_id
 - openstack_project_domain_id
 
-#Floating IP not assigned
+Floating IP not assigned:
 Check:
 - Neutron external network exists
 - Security groups allow SSH ingress
 
-#Volume creation errors
+Volume creation errors:
 Verify:
 - Cinder backend is available
 - Volume type exists (if specified)
 
-#SSH timeouts
+SSH timeouts:
 Use:
+```
 ssh:
   keepalive: true
   keepalive_interval: 5
+```
+---------------------------------------------------------------------
 
-#Contributing
+# Contributing
+
 Contributions are welcome.
 Please follow the Beaker project’s contribution guidelines:
 https://github.com/puppetlabs/beaker/blob/master/CONTRIBUTING.md
