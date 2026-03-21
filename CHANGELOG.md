@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0](https://github.com/voxpupuli/beaker-openstack/tree/3.0.0) (2026-03-21)
+
+[Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/2.1.0...3.0.0)
+
+### Breaking changes / major refactor
+
+- Major rewrite of OpenStack hypervisor provisioning
+  - Correct Keystone v2/v3 credential validation and domain scoping
+  - Replaced legacy Nova floating-IP logic with Neutron-only allocation
+  - More reliable hostname/IP assignment (IPv4-preferred)
+- Keypair handling improved
+  - Ephemeral keypairs now tracked and cleaned up reliably
+  - Optional safe recreation when stale keypairs already exist
+- Boot-from-volume and block-device mapping fixed
+  - Proper `block_device_mapping_v2` and `delete_on_termination` handling
+- Added support for additional non-ephemeral volumes (`openstack_volume_support`)
+  - Volumes can be created and attached automatically
+  - Additional volumes are preserved during cleanup
+- General improvements to logging, metadata handling, and parallel provisioning
+
 ## [2.1.0](https://github.com/voxpupuli/beaker-openstack/tree/2.1.0) (2025-12-31)
 
 [Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/2.0.0...2.1.0)

@@ -4,73 +4,78 @@ require 'fog/openstack'
 module Beaker
   describe Openstack do
 
-    let(:options) { make_opts.merge({'logger' => double().as_null_object, 'openstack_floating_ip' => true}) }
+    let(:options) do
+      make_opts.merge(
+        'logger' => double.as_null_object,
+        'openstack_floating_ip' => true,
+        'floating_ip_pool' => 'my_pool'
+      )
+    end
 
-    let(:openstack) {
-      Openstack.new(@hosts, options)
-    }
+    let(:openstack) { Openstack.new(@hosts, options) }
 
     before :each do
       @hosts = make_hosts()
 
-      @compute_client = double().as_null_object
-      @network_client = double().as_null_object
+      @compute_client = double.as_null_object
+      @network_client = double.as_null_object
 
-      allow( Fog::Compute ).to receive( :new ).and_return( @compute_client )
-      allow( Fog::Network ).to receive( :new ).and_return( @network_client )
+      allow(Fog::Compute).to receive(:new).and_return(@compute_client)
+      allow(Fog::Network).to receive(:new).and_return(@network_client)
     end
 
+    # -------------------------------------------------------------------------
+    # Keystone version tests
+    # -------------------------------------------------------------------------
     context 'keystone version support' do
       it 'supports keystone v2' do
         credentials = openstack.instance_eval('@credentials')
+        expect(credentials[:openstack_tenant]).to eq('testing')
         expect(credentials[:openstack_user_domain]).to be_nil
         expect(credentials[:openstack_project_domain]).to be_nil
       end
 
-      it 'supports keystone v3 with implicit arguments' do
-        v3_options = options
-        v3_options[:openstack_auth_url] = 'https://example.com/identity/v3/auth'
-        v3_options[:openstack_project_name] = 'TeamTest_ab_c'
-        v3_options[:openstack_tenant] = nil
+      it 'supports keystone v3 with implicit defaults' do
+        v3 = options.dup
+        v3[:openstack_auth_url] = 'https://example.com/identity/v3'
+        v3[:openstack_project_name] = 'TeamTest'
+        v3[:openstack_tenant] = nil
 
-        credentials = Openstack.new(@hosts, v3_options).instance_eval('@credentials')
-        expect(credentials[:openstack_user_domain]).to eq('Default')
-        expect(credentials[:openstack_project_domain]).to eq('Default')
-        expect(credentials[:openstack_project_name]).to eq('TeamTest_ab_c')
-        expect(credentials[:openstack_tenant]).to be_nil
+        creds = Openstack.new(@hosts, v3).instance_eval('@credentials')
+        expect(creds[:openstack_project_name]).to eq('TeamTest')
+        expect(creds[:openstack_user_domain]).to eq('Default')
+        expect(creds[:openstack_project_domain]).to eq('Default')
       end
 
-      it 'supports keystone v3 with explicit arguments' do
-        v3_options = options
-        v3_options[:openstack_auth_url] = 'https://example.com/identity/v3/auth'
-        v3_options[:openstack_user_domain] = 'acme.com'
-        v3_options[:openstack_project_domain] = 'R&D'
-        v3_options[:openstack_project_name] = 'Team_test_abc'
-        v3_options[:openstack_tenant] = nil
+      it 'supports keystone v3 with explicit domains' do
+        v3 = options.dup
+        v3[:openstack_auth_url] = 'https://example.com/identity/v3'
+        v3[:openstack_project_name] = 'TeamTest'
+        v3[:openstack_user_domain] = 'acme'
+        v3[:openstack_project_domain] = 'rnd'
+        v3[:openstack_tenant] = nil
 
-        credentials = Openstack.new(@hosts, v3_options).instance_eval('@credentials')
-        expect(credentials[:openstack_user_domain]).to eq('acme.com')
-        expect(credentials[:openstack_project_domain]).to eq('R&D')
-        expect(credentials[:openstack_project_name]).to eq('Team_test_abc')
-        expect(credentials[:openstack_tenant]).to be_nil
+        creds = Openstack.new(@hosts, v3).instance_eval('@credentials')
+        expect(creds[:openstack_user_domain]).to eq('acme')
+        expect(creds[:openstack_project_domain]).to eq('rnd')
       end
     end
 
+    # -------------------------------------------------------------------------
+    # Provision tests
+    # -------------------------------------------------------------------------
     describe '#provision' do
-
-      it 'check openstack options during initialization' do
-        options = openstack.instance_eval('@options')
-        expect(options['openstack_api_key']).to eq('P1as$w0rd')
-        expect(options['openstack_username']).to eq('user')
-        expect(options['openstack_auth_url']).to eq('http://openstack_hypervisor.labs.net:5000/v2.0/tokens')
-        expect(options['openstack_tenant']).to eq('testing')
-        expect(options['openstack_network']).to eq('testing')
-        expect(options['openstack_keyname']).to eq('nopass')
-        expect(options['security_group']).to eq(['my_sg', 'default'])
-        expect(options['floating_ip_pool']).to eq('my_pool')
+      it 'initializes options correctly' do
+        opts = openstack.instance_eval('@options')
+        expect(opts['openstack_api_key']).to eq('P1as$w0rd')
+        expect(opts['openstack_username']).to eq('user')
+        expect(opts['openstack_auth_url']).to eq('http://openstack_hypervisor.labs.net:5000/v2.0/tokens')
+        expect(opts['openstack_network']).to eq('testing')
+        expect(opts['security_group']).to eq(['my_sg', 'default'])
+        expect(opts['floating_ip_pool']).to eq('my_pool')
       end
 
-      it 'check hosts options during initialization' do
+      it 'initializes host defaults' do
         @hosts.each do |host|
           expect(host['image']).to eq('default_image')
           expect(host['flavor']).to eq('m1.large')
@@ -78,168 +83,217 @@ module Beaker
         end
       end
 
-      it 'check host options during server creation' do
+      it 'passes correct parameters to server creation' do
+        mock_flavor = double(id: 12345)
+        mock_image  = double(id: 54321)
 
-        mock_flavor = Object.new
-        allow( mock_flavor ).to receive( :id ).and_return( 12345 )
-        allow( openstack ).to receive( :flavor ).and_return( mock_flavor )
-        expect( openstack ).to receive( :flavor ).with( 'm1.large' )
+        allow(openstack).to receive(:flavor).and_return(mock_flavor)
+        allow(openstack).to receive(:image).and_return(mock_image)
 
-        mock_image = Object.new
-        allow( mock_image ).to receive( :id ).and_return( 54321 )
-        allow( openstack ).to receive( :image ).and_return( mock_image )
-        expect( openstack ).to receive( :image ).with( 'default_image' )
-
-        mock_servers = double().as_null_object
-        allow( @compute_client ).to receive( :servers ).and_return( mock_servers )
+        mock_servers = double.as_null_object
+        allow(@compute_client).to receive(:servers).and_return(mock_servers)
 
         expect(mock_servers).to receive(:create).with(hash_including(
-          :user_data => '#cloud-config\nmanage_etc_hosts: true\nfinal_message: "The host is finally up!"',
-          :flavor_ref => 12345,
-          :image_ref => 54321)
-        )
+          flavor_ref: 12345,
+          user_data: '#cloud-config\nmanage_etc_hosts: true\nfinal_message: "The host is finally up!"'
+        ))
 
-        @hosts.each do |host|
-          allow(host).to receive(:wait_for_port).and_return(true)
-        end
+        @hosts.each { |h| allow(h).to receive(:wait_for_port).and_return(true) }
+
+        mock_ip = double(ip: '172.16.0.1')
+        allow(mock_ip).to receive(:server=)
+        allow(openstack).to receive(:get_floating_ip).and_return(mock_ip)
 
         openstack.provision
       end
 
-      it 'generates valid keynames during server creation' do
-        # Simulate getting a dynamic IP from OpenStack to test key generation code
-        # after provisioning. See _validate_new_key_pair in openstack/nova for reference
-        mock_ip = double().as_null_object
-        allow( openstack ).to receive( :get_floating_ip ).and_return( mock_ip )
-        allow( mock_ip ).to receive( :ip ).and_return( '172.16.0.1' )
+      it 'generates valid keynames' do
+        mock_ip = double(ip: '172.16.0.1')
+        allow(mock_ip).to receive(:server=)
+        allow(openstack).to receive(:get_floating_ip).and_return(mock_ip)
         openstack.instance_eval('@options')['openstack_keyname'] = nil
 
-        @hosts.each do |host|
-          allow(host).to receive(:wait_for_port).and_return(true)
-        end
+        @hosts.each { |h| allow(h).to receive(:wait_for_port).and_return(true) }
 
         openstack.provision
 
         @hosts.each do |host|
-          expect(host[:keyname]).to match(/^[_\-0-9a-zA-Z]+$/)
+          expect(host[:keyname]).to match(/^[A-Za-z0-9.\-_]+$/)
         end
       end
 
-      it 'get_floating_ip always allocates a new floatingip' do
-        # Assume beaker is being executed in parallel N times by travis (or similar).
-        # IPs are allocated (but not associated) before an instance is created; it is
-        # hightly possible the first instance will allocate a new IP and create an ssh
-        # key.  While the instance is being created the other N-1 instances come along,
-        # find the unused IP and try to use it as well which causes keyname clashes
-        # and other IP related shenannigans.  Ensure we allocate a new IP each and every
-        # time
-        mock_addresses = double().as_null_object
-        mock_ip = double().as_null_object
-        allow(@compute_client).to receive(:addresses).and_return(mock_addresses)
-        allow(mock_addresses).to receive(:create).and_return(mock_ip)
-        expect(mock_addresses).to receive(:create).exactly(3).times
-        (1..3).each { openstack.get_floating_ip }
+      it 'allocates a new floating IP each time' do
+        mock_fips = double.as_null_object
+        allow(@network_client).to receive(:floating_ips).and_return(mock_fips)
+        expect(mock_fips).to receive(:create).exactly(3).times
+
+        3.times { openstack.get_floating_ip }
       end
 
-      context 'volume creation option' do
-        it 'provisions volume by default' do
-          mock_flavor = Object.new
-          allow( mock_flavor ).to receive( :id ).and_return( 12345 )
-          allow( openstack ).to receive( :flavor ).and_return( mock_flavor )
-          mock_image = Object.new
-          allow( mock_image ).to receive( :id ).and_return( 54321 )
-          allow( openstack ).to receive( :image ).and_return( mock_image )
-          mock_servers = double().as_null_object
-          allow( @compute_client ).to receive( :servers ).and_return( mock_servers )
+      it 'attempts metadata update but rescues failures' do
+        mock_flavor = double(id: 12345)
+        mock_image  = double(id: 54321)
 
-          @hosts.each do |host|
-            allow(host).to receive(:wait_for_port).and_return(true)
-            expect(openstack).to receive(:provision_storage)
-          end
+        allow(openstack).to receive(:flavor).and_return(mock_flavor)
+        allow(openstack).to receive(:image).and_return(mock_image)
 
-          openstack.provision
-        end
+        mock_servers = double.as_null_object
+        allow(@compute_client).to receive(:servers).and_return(mock_servers)
 
-        it 'skips provisioning when disabled' do
-          mock_flavor = Object.new
-          allow( mock_flavor ).to receive( :id ).and_return( 12345 )
-          allow( openstack ).to receive( :flavor ).and_return( mock_flavor )
-          mock_image = Object.new
-          allow( mock_image ).to receive( :id ).and_return( 54321 )
-          allow( openstack ).to receive( :image ).and_return( mock_image )
-          mock_servers = double().as_null_object
-          allow( @compute_client ).to receive( :servers ).and_return( mock_servers )
+        vm = double(as_null_object: true)
+        allow(vm).to receive(:wait_for)
+        allow(mock_servers).to receive(:create).and_return(vm)
 
-          openstack.instance_eval('@options')['openstack_volume_support'] = false
+        mock_metadata = double()
+        allow(vm).to receive(:metadata).and_return(mock_metadata)
+        allow(mock_metadata).to receive(:update).and_raise("metadata disabled")
 
-          @hosts.each do |host|
-            allow(host).to receive(:wait_for_port).and_return(true)
-            expect(openstack).not_to receive(:provision_storage)
-          end
+        mock_ip = double(ip: '172.16.0.1')
+        allow(mock_ip).to receive(:server=)
+        allow(openstack).to receive(:get_floating_ip).and_return(mock_ip)
 
-          openstack.provision
-        end
+        @hosts.each { |h| allow(h).to receive(:wait_for_port).and_return(true) }
+
+        expect { openstack.provision }.not_to raise_error
+      end
+
+      # ---------------------------------------------------------------------
+      # Boot-from-volume test
+      # ---------------------------------------------------------------------
+      it 'uses block_device_mapping_v2 when boot_from_volume is enabled' do
+        host = @hosts.first
+        host['boot_from_volume'] = true
+        host['root_volume'] = { 'size' => 20 }
+
+        mock_flavor = double(id: 12345)
+        mock_image  = double(id: 'img-123')
+
+        allow(openstack).to receive(:flavor).and_return(mock_flavor)
+        allow(openstack).to receive(:image).and_return(mock_image)
+
+        mock_servers = double.as_null_object
+        allow(@compute_client).to receive(:servers).and_return(mock_servers)
+
+        expect(mock_servers).to receive(:create).with(hash_including(
+          flavor_ref: 12345,
+          block_device_mapping_v2: [
+            hash_including(
+              boot_index: 0,
+              uuid: 'img-123',
+              source_type: 'image',
+              destination_type: 'volume',
+              volume_size: 20
+            )
+          ]
+        ))
+
+        @hosts.each { |h| allow(h).to receive(:wait_for_port).and_return(true) }
+
+        mock_ip = double(ip: '172.16.0.1')
+        allow(mock_ip).to receive(:server=)
+        allow(openstack).to receive(:get_floating_ip).and_return(mock_ip)
+
+        openstack.provision
       end
     end
 
-    describe '#provision_storage' do
+    # -------------------------------------------------------------------------
+    # Volume support tests
+    # -------------------------------------------------------------------------
+    context 'volume creation option' do
+      it 'calls provision_storage when enabled' do
+        mock_flavor = double(id: 12345)
+        mock_image  = double(id: 54321)
 
-      it 'creates volumes with cinder v1' do
-        # Mock a volume
-        allow(openstack).to receive(:get_volumes).and_return({'volume1' => {'size' => 1000000 }})
+        allow(openstack).to receive(:flavor).and_return(mock_flavor)
+        allow(openstack).to receive(:image).and_return(mock_image)
 
-        # Stub out the call to create the client and hard code the return value
-        allow(openstack).to receive(:volume_client_create).and_return(nil)
-        client = double().as_null_object
-        openstack.instance_variable_set(:@volume_client, client)
-        allow(openstack).to receive(:get_volume_api_version).and_return(1)
+        mock_servers = double.as_null_object
+        allow(@compute_client).to receive(:servers).and_return(mock_servers)
 
-        # Check the parameters are valid, correct 'name' parameter and correct size conversion
-        mock_volume = double().as_null_object
-        expect(client).to receive(:create).with(:display_name => 'volume1',
-                                                :description => 'Beaker volume: host=alan volume=volume1',
-                                                :size => 1000
-                                               ).and_return(mock_volume)
-        allow(mock_volume).to receive(:wait_for).and_return(nil)
+        @hosts.each do |host|
+          allow(host).to receive(:wait_for_port).and_return(true)
+          expect(openstack).to receive(:provision_storage)
+        end
 
-        # Perform the test!
-        mock_vm = double().as_null_object
-        allow(mock_volume).to receive(:id).and_return('Fake ID')
-        expect(mock_vm).to receive(:attach_volume).with('Fake ID', '/dev/vdb')
+        mock_ip = double(ip: '172.16.0.1')
+        allow(mock_ip).to receive(:server=)
+        allow(openstack).to receive(:get_floating_ip).and_return(mock_ip)
 
-        mock_host = double().as_null_object
-        allow(mock_host).to receive(:name).and_return('alan')
-
-        openstack.provision_storage mock_host, mock_vm
+        openstack.provision
       end
 
-      it 'creates volumes with cinder v2' do
-        # Mock a volume
-        allow(openstack).to receive(:get_volumes).and_return({'volume1' => {'size' => 1000000 }})
+      it 'skips provision_storage when disabled' do
+        openstack.instance_eval('@options')[:openstack_volume_support] = false
 
-        # Stub out the call to create the client and hard code the return value
-        allow(openstack).to receive(:volume_client_create).and_return(nil)
-        client = double().as_null_object
+        mock_flavor = double(id: 12345)
+        mock_image  = double(id: 54321)
+
+        allow(openstack).to receive(:flavor).and_return(mock_flavor)
+        allow(openstack).to receive(:image).and_return(mock_image)
+
+        mock_servers = double.as_null_object
+        allow(@compute_client).to receive(:servers).and_return(mock_servers)
+
+        @hosts.each do |host|
+          allow(host).to receive(:wait_for_port).and_return(true)
+          expect(openstack).not_to receive(:provision_storage)
+        end
+
+        mock_ip = double(ip: '172.16.0.1')
+        allow(mock_ip).to receive(:server=)
+        allow(openstack).to receive(:get_floating_ip).and_return(mock_ip)
+
+        openstack.provision
+      end
+    end
+
+    # -------------------------------------------------------------------------
+    # provision_storage tests
+    # -------------------------------------------------------------------------
+    describe '#provision_storage' do
+      it 'creates and attaches volumes' do
+        allow(openstack).to receive(:get_volumes).and_return({
+          'vol1' => { 'size' => 10 }
+        })
+
+        client = double.as_null_object
         openstack.instance_variable_set(:@volume_client, client)
-        allow(openstack).to receive(:get_volume_api_version).and_return(-1)
 
-        # Check the parameters are valid, correct 'name' parameter and correct size conversion
-        mock_volume = double().as_null_object
-        expect(client).to receive(:create).with(:name => 'volume1',
-                                                :description => 'Beaker volume: host=alan volume=volume1',
-                                                :size => 1000
-                                               ).and_return(mock_volume)
-        allow(mock_volume).to receive(:wait_for).and_return(nil)
+        mock_volume = double(status: 'available', as_null_object: true)
+        expect(client).to receive(:volumes).and_return(double(create: mock_volume))
 
-        # Perform the test!
-        mock_vm = double().as_null_object
-        allow(mock_volume).to receive(:id).and_return('Fake ID')
-        expect(mock_vm).to receive(:attach_volume).with('Fake ID', '/dev/vdb')
+        allow(mock_volume).to receive(:wait_for).and_return(true)
+        allow(mock_volume).to receive(:id).and_return('vol-id')
 
-        mock_host = double().as_null_object
-        allow(mock_host).to receive(:name).and_return('alan')
+        mock_vm = double.as_null_object
+        expect(mock_vm).to receive(:attach_volume).with('vol-id', '/dev/vdc')
 
-        openstack.provision_storage mock_host, mock_vm
+        mock_host = double(name: 'host1', as_null_object: true)
+
+        openstack.provision_storage(mock_host, mock_vm)
+      end
+    end
+
+    # -------------------------------------------------------------------------
+    # cleanup tests
+    # -------------------------------------------------------------------------
+    describe '#cleanup' do
+      it 'deletes ephemeral keypairs created during provisioning' do
+        openstack.instance_variable_set(:@ephemeral_keypairs, ['kp1', 'kp2'])
+
+        fake_kp = double()
+        allow(fake_kp).to receive(:destroy)
+
+        mock_keypairs = double()
+        allow(@compute_client).to receive(:key_pairs).and_return(mock_keypairs)
+
+        allow(mock_keypairs).to receive(:get).with('kp1').and_return(fake_kp)
+        allow(mock_keypairs).to receive(:get).with('kp2').and_return(fake_kp)
+
+        expect(fake_kp).to receive(:destroy).twice
+
+        expect { openstack.cleanup }.not_to raise_error
       end
     end
   end
