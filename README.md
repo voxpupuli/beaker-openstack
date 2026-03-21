@@ -5,6 +5,7 @@
 [![Release](https://github.com/voxpupuli/beaker-openstack/actions/workflows/release.yml/badge.svg)](https://github.com/voxpupuli/beaker-openstack/actions/workflows/release.yml)
 [![RubyGem Version](https://img.shields.io/gem/v/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
 [![RubyGem Downloads](https://img.shields.io/gem/dt/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
+[![Donated by Puppet Inc](https://img.shields.io/badge/donated%20by-Puppet%20Inc-fb7047.svg)](#transfer-notice)
 
 Beaker hypervisor support for provisioning hosts on modern OpenStack clouds.
 
@@ -52,19 +53,15 @@ gem 'beaker-openstack', '~> 3.0'
 # Installation
 
 Add to your Gemfile or gemspec:
-```
-gem 'beaker-openstack'
-```
+`gem 'beaker-openstack'`
 Then install:
-```
-bundle install
-```
+`bundle install`
 
 ---------------------------------------------------------------------
 
 # Configuration
 
-All OpenStack configuration is provided under the CONFIG: section of your nodeset.
+All OpenStack configuration is provided under the `CONFIG:` section of your nodeset.
 
 Required parameters:
 ```
@@ -89,6 +86,17 @@ Optional parameters:
 - create_in_parallel
 - run_in_parallel
 ```
+
+Notes:
+
+- When using _id parameters, ensure all three IDs match the parameter type:
+```
+openstack_project_id
+openstack_user_domain_id
+openstack_project_domain_id
+```
+- Static master nodes can be defined with `hypervisor: none` and providing `hostname`, `vmhostname`, and `ip`.
+- For parameter precedence, see: [Beaker argument processing](https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md)
 
 ---------------------------------------------------------------------
 
@@ -117,6 +125,9 @@ CONFIG:
   openstack_network: private-net
   openstack_keyname: beaker-key
   openstack_floating_ip: true
+  preserve_hosts: onfail
+  create_in_parallel: true
+  run_in_parallel: ['configure', 'install']
 ```
 
 Boot-from-volume example:
@@ -156,24 +167,26 @@ HOSTS:
         description: second-volume
 ```
 
+Notes:
+- `root_volume` replaces ephemeral disk.
+- `volumes` are attached after instance is ACTIVE.
+- `volume_size` defaults to image minimum unless overridden.
+- `Floating IPs` are allocated deterministically if enabled.
+
 ---------------------------------------------------------------------
 
 # Volume Provisioning
-
-When root_volume: true is set:
-- The instance boots from a Cinder volume instead of ephemeral disk.
-- The volume is created using the image specified in the nodeset.
+- Instance boots from Cinder volume instead of ephemeral disk if root_volume is set.
+- Volume size can be overridden via volume_size.
 - The volume size defaults to the image minimum size unless overridden by volume_size (in Gb).
-- Additional volumes are created and attached after the instance becomes ACTIVE.
-
+- Additional volumes are created after the instance becomes ACTIVE.
 ---------------------------------------------------------------------
 
 # Floating IP Allocation
-
-Floating IPs are allocated using Neutron:
-- If openstack_floating_ip: true, a floating IP is created or reused.
-- The IP is attached to the instance’s primary port.
-- Allocation is deterministic and logged clearly.
+- Managed via Neutron.
+- If `openstack_floating_ip: true`, a floating IP is created or reused.
+- IP is attached to instance's primary port.
+- Allocation is deterministic and logged clearly
 
 ---------------------------------------------------------------------
 
@@ -195,30 +208,32 @@ The spec suite includes:
 # Acceptance Tests
 
 Acceptance tests require:
-- OPENSTACK_HOSTS — path to a nodeset using the OpenStack hypervisor
-- OPENSTACK_KEY — path to the private SSH key used for the instances
+- `OPENSTACK_HOSTS` — path to a nodeset using the OpenStack hypervisor
+- `OPENSTACK_KEY` — path to the private SSH key used for the instances
 
 Run acceptance tests:
+```
 bundle exec rake test:acceptance
+```
 
-A valid nodeset must include at least one host using the OpenStack hypervisor.
+At least one host must use the OpenStack hypervisor.
 
 ---------------------------------------------------------------------
 
 # Troubleshooting
 
-Authentication failures:
+##Authentication failures:
 Ensure all three Keystone v3 IDs are correct:
-- openstack_project_id
-- openstack_user_domain_id
-- openstack_project_domain_id
+- `openstack_project_id`
+- `openstack_user_domain_id`
+- `openstack_project_domain_id`
 
-Floating IP not assigned:
+##Floating IP not assigned:
 Check:
 - Neutron external network exists
 - Security groups allow SSH ingress
 
-Volume creation errors:
+##Volume creation errors:
 Verify:
 - Cinder backend is available
 - Volume type exists (if specified)
