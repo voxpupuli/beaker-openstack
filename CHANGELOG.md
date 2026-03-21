@@ -8,19 +8,27 @@ All notable changes to this project will be documented in this file.
 
 ### Breaking changes / major refactor
 
-- Major rewrite of OpenStack hypervisor provisioning
+- **Complete rewrite of the OpenStack hypervisor provisioning flow**
   - Correct Keystone v2/v3 credential validation and domain scoping
-  - Replaced legacy Nova floating-IP logic with Neutron-only allocation
-  - More reliable hostname/IP assignment (IPv4-preferred)
-- Keypair handling improved
-  - Ephemeral keypairs now tracked and cleaned up reliably
+  - Removed legacy Nova floating-IP behaviour; now uses Neutron exclusively
+  - More deterministic hostname and IP assignment (IPv4-preferred)
+
+- **Keypair management redesigned**
+  - Ephemeral keypairs are now tracked and reliably cleaned up
   - Optional safe recreation when stale keypairs already exist
-- Boot-from-volume and block-device mapping fixed
-  - Proper `block_device_mapping_v2` and `delete_on_termination` handling
-- Added support for additional non-ephemeral volumes (`openstack_volume_support`)
-  - Volumes can be created and attached automatically
-  - Additional volumes are preserved during cleanup
-- General improvements to logging, metadata handling, and parallel provisioning
+
+- **Boot-from-volume and block-device mapping corrected**
+  - Proper `block_device_mapping_v2` construction
+  - Correct `delete_on_termination` behaviour
+  - Removed custom detach/delete logic (OpenStack handles lifecycle natively)
+
+- **New support for additional non-ephemeral volumes (`openstack_volume_support`)**
+  - Volumes can be created, attached, and waited on automatically
+  - Additional volumes are intentionally preserved during cleanup
+
+- **General improvements**
+  - More robust metadata updates (now best-effort with safe fallback)
+  - Clearer logging and more predictable behaviour in parallel provisioning
 
 ## [2.1.0](https://github.com/voxpupuli/beaker-openstack/tree/2.1.0) (2025-12-31)
 

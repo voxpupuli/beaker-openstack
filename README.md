@@ -5,168 +5,208 @@
 [![Release](https://github.com/voxpupuli/beaker-openstack/actions/workflows/release.yml/badge.svg)](https://github.com/voxpupuli/beaker-openstack/actions/workflows/release.yml)
 [![RubyGem Version](https://img.shields.io/gem/v/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
 [![RubyGem Downloads](https://img.shields.io/gem/dt/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
-[![Donated by Puppet Inc](https://img.shields.io/badge/donated%20by-Puppet%20Inc-fb7047.svg)](#transfer-notice)
 
-Beaker library to use openstack hypervisor
+Beaker hypervisor support for provisioning hosts on modern OpenStack clouds.
 
-# How to use this wizardry
+This version of **beaker-openstack** has been fully modernized and now supports:
 
-This gem that allows you to use hosts with [openstack](openstack.md) hypervisor with [beaker](https://github.com/puppetlabs/beaker). 
+- Keystone v3 authentication (v2 removed)
+- Neutron networking only (Nova-network removed)
+- Deterministic floating IP allocation
+- Boot-from-volume provisioning
+- Optional additional Cinder volumes
+- Updated keypair lifecycle management
+- Stronger credential validation and error reporting
+- Predictable provisioning and teardown behavior
+- Updated RSpec suite and acceptance test flow
 
-Beaker will automatically load the appropriate hypervisors for any given hosts file, so as long as your project dependencies are satisfied there's nothing else to do. No need to `require` this library in your tests.
+---
 
-## With Beaker 3.x
+# Overview
 
-This library is included as a dependency of Beaker 3.x versions, so there's nothing to do.
+`beaker-openstack` provides an OpenStack hypervisor implementation for Beaker.
+It provisions OpenStack instances, assigns floating IPs, manages keypairs, and optionally provisions volumes.
 
-## With Beaker 4.x
+Beaker automatically loads hypervisors based on the `hypervisor:` field in your nodeset.
+No explicit `require` is needed.
 
-As of Beaker 4.0, all hypervisor and DSL extension libraries have been removed and are no longer dependencies. In order to use a specific hypervisor or DSL extension library in your project, you will need to include them alongside Beaker in your Gemfile or project.gemspec. E.g.
+---
 
-~~~ruby
+# Compatibility
+
+## Beaker 3.x
+Beaker 3.x included hypervisors directly.
+This gem remains compatible, but Beaker 3 is no longer maintained.
+
+## Beaker 4.x and later
+Beaker 4.x removed all bundled hypervisors.
+You **must** include this gem explicitly:
+
 # Gemfile
-gem 'beaker', '~>4.0'
-gem 'beaker-aws'
-# project.gemspec
-s.add_runtime_dependency 'beaker', '~>4.0'
-s.add_runtime_dependency 'beaker-aws'
-~~~
+gem 'beaker', '~> 4.0'
+gem 'beaker-openstack', '~> 3.0'
 
-# Spec tests
+# Installation
+Add to your Gemfile or gemspec:
+`gem 'beaker-openstack'`
 
-Spec test live under the `spec` folder. There are the default rake task and therefore can run with a simple command:
-```bash
-bundle exec rake test:spec
+Then:
+`bundle install`
+
+# Configuration
+All OpenStack configuration is provided under the CONFIG: section of your nodeset.
+
+### Required parameters
+
+| Parameter | Example |
+| :--- | :--- |
+| openstack_auth_url | https://keystone.example.com:5000/v3 |
+| openstack_username | |
+| openstack_api_key | |
+| openstack_project_id | |
+| openstack_user_domain_id | |
+| openstack_project_domain_id | |
+| openstack_network | |
+| openstack_keyname | |
+
+### Optional parameters
+
+| Parameter | Example |
+| :--- | :--- |
+| openstack_floating_ip | true |
+| openstack_volume_support | true |
+| openstack_volume_size | |
+| openstack_additional_volumes | { size: <GB>, type: <string> } |
+| security_group | |
+| preserve_hosts | alwayson \| failonpass \| never |
+| create_in_parallel | |
+| run_in_parallel | |
+
+##Nodeset Examples
+#Minimal example
+
+```
+HOSTS:
+  agent:
+    roles:
+      - agent
+    hypervisor: openstack
+    platform: el-9-x86_64
+    image: rhel-9-latest
+    flavor: m1.medium
+    ssh:
+      user: cloud-user
+
+CONFIG:
+  openstack_username: myuser
+  openstack_api_key: mypass
+  openstack_project_id: 1234567890abcdef
+  openstack_user_domain_id: default
+  openstack_project_domain_id: default
+  openstack_auth_url: https://keystone.example.com:5000/v3
+  openstack_network: private-net
+  openstack_keyname: beaker-key
+  openstack_floating_ip: true
 ```
 
-# Acceptance tests
-
-We run beaker's base acceptance tests with this library to see if the hypervisor is working with beaker. Please check our [openstack docs](openstack.md) to create host file to run acceptance tests. You need to set two environment variables before running acceptance tests:
-
-1. `OPENSTACK_HOSTS` - Path to hostfile with hosts using openstack hypervisor
-
-2. `OPENSTACK_KEY` - Path to private key that is used to SSH into Openstack VMs 
-
-You will need at least two hosts defined in a nodeset file. An example comprehensive nodeset is below (note that not all parameters are required):
-
-```yaml
-
+#Boot-from-volume example
+```
 HOSTS:
   master:
     roles:
-      - agent
       - master
-      - dashboard
-      - database
     hypervisor: openstack
-    platform: <my_platform> 
-    user: <host_username>
-    image: <host_image>
-    flavor: <host_flavor>
+    image: rhel-9-latest
+    flavor: m1.large
+    use_volume: true
+    volume_size: 40
     ssh:
       user: cloud-user
-      password: <cloud-user_password>
-      auth_methods:
-        - password
-        - publickey
-      keys:
-        - <relative_path/public_key>
-    user_data: |
-      #cloud-config
-      output: {all: '| tee -a /var/log/cloud-init-output.log'}
-      disable_root: <True/False>
-      ssh_pwauth: <True/False>
-      chpasswd:
-        list: |
-           root:<root_password>
-           cloud-user:<cloud-user_password>
-        expire: False
-      runcmd:
-        - <my_optional_commands>
-
-  agent_1:
-    roles:
-      - agent
-      - default
-    hypervisor: openstack
-    platform: <my_platform>
-    user: <host_username>
-    image: <host_image>
-    flavor: <host_flavor>
-    ssh:
-      user: cloud-user
-      password: <cloud-user_password>
-      auth_methods:
-        - publickey
-      keys:
-        - <relative_path/public_key>
-      number_of_password_prompts: 0
-      keepalive: true
-      keepalive_interval: 5
-    user_data: |
-      #cloud-config
-      output: {all: '| tee -a /var/log/cloud-init-output.log'}
-      disable_root: <True/False>
-      ssh_pwauth: <True/False>
-      chpasswd:
-        list: |
-           root:<root_password>
-           cloud-user:<cloud-user_password>
-        expire: False
-      runcmd:
-        - <my_optional_commands>
 
 CONFIG:
-  log_level: <trace/debug/verbose/info/notify/warn>
-  trace_limit: 50
-  timesync: <true/false>
-  nfs_server: none
-  consoleport: 443
-  openstack_username: <insert_username>
-  openstack_api_key: <insert_password>
-#  openstack_project_name: <insert_project_name>     # alternatively use openstack_project_id
-  openstack_project_id: <insert_id>
-#  openstack_user_domain: <insert user_domain>       # alternatively use openstack_user_domain_id
-  openstack_user_domain_id: <insert_id>
-#  openstack_project_domain: <insert_project_domain> # alternatively use openstack_project_domain_id
-  openstack_project_domain_id: <insert_id>
-  openstack_auth_url: http://<keystone_ip>:5000/v3/
-  openstack_network: <insert_network>
-  openstack_keyname: <insert_key>
-  openstack_floating_ip: <true/false>
-  openstack_volume_support: <true/false>
-  security_group: ['default']
-  preserve_hosts: <always/onfail/onpass/never>
-  create_in_parallel: true
-  run_in_parallel: ['configure', 'install']
-  type: <foss/git/pe>
+  openstack_volume_support: true
 ```
 
-Note that when using _id parameters, you must also match the parameter type across the following when domain is specified:
+
+#Additional volumes example
+```
+HOSTS:
+  db:
+    roles:
+      - database
+    hypervisor: openstack
+    image: ubuntu-22.04
+    flavor: m1.large
+    use_volume: true
+    volume_size: 20
+    additional_volumes:
+      - size: 50
+        type: fast-ssd
+      - size: 200
+        type: bulk-storage
+```
+
+
+#Volume Provisioning
+When use_volume: true is set:
+- The instance boots from a Cinder volume instead of ephemeral disk.
+- The volume is created using the image specified in the nodeset.
+- The volume size defaults to the image minimum size unless overridden by volume_size.
+Additional volumes are created and attached after the instance becomes ACTIVE.
+
+#Floating IP Allocation
+Floating IPs are allocated using Neutron:
+- If openstack_floating_ip: true, a floating IP is created or reused.
+- The IP is attached to the instance’s primary port.
+- Allocation is deterministic and logged clearly.
+
+#Spec Tests
+RSpec tests live under spec/.
+Run them with:
+bundle exec rake test:spec
+
+
+The spec suite includes:
+- Credential validation
+- Keypair lifecycle
+- Volume provisioning logic
+- Floating IP allocation
+- Error handling and retries
+
+#Acceptance Tests
+Acceptance tests require:
+- OPENSTACK_HOSTS — path to a nodeset using the OpenStack hypervisor
+- OPENSTACK_KEY — path to the private SSH key used for the instances
+Run acceptance tests:
+bundle exec rake test:acceptance
+
+
+A valid nodeset must include at least one host using the OpenStack hypervisor.
+
+##Troubleshooting
+#Authentication failures
+Ensure all three Keystone v3 IDs are correct:
 - openstack_project_id
 - openstack_user_domain_id
-- openstack_project_domain_id 
+- openstack_project_domain_id
 
-Further, you can opt to use a static master by setting the master's hypervisor to none, and identifying its location thus:
-```yaml
-    hypervisor: none
-    hostname: <master_hostname>
-    vmhostname: <master_hostname>
-    ip: <master_ip>
-```
+#Floating IP not assigned
+Check:
+- Neutron external network exists
+- Security groups allow SSH ingress
 
-Additionally, you can set instance creation to occur in parallel instead of sequentially via this CONFIG entry:
-```yaml
-create_in_parallel: true
-```
+#Volume creation errors
+Verify:
+- Cinder backend is available
+- Volume type exists (if specified)
 
-Additional parameter information is available at https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md
+#SSH timeouts
+Use:
+ssh:
+  keepalive: true
+  keepalive_interval: 5
 
-There is a simple rake task to invoke acceptance test for the library once the two environment variables are set:
-```bash
-bundle exec rake test:acceptance
-```
-
-# Contributing
-
-Please refer to puppetlabs/beaker's [contributing](https://github.com/puppetlabs/beaker/blob/master/CONTRIBUTING.md) guide.
+#Contributing
+Contributions are welcome.
+Please follow the Beaker project’s contribution guidelines:
+https://github.com/puppetlabs/beaker/blob/master/CONTRIBUTING.md
