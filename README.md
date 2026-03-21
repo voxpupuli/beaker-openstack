@@ -261,4 +261,4 @@ ssh:
 
 Contributions are welcome.
 Please follow the Beaker project’s contribution guidelines:
-https://github.com/puppetlabs/beaker/blob/master/CONTRIBUTING.md
+https://github.com/voxpupuli/.github/blob/master/CONTRIBUTING.md
