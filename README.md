@@ -149,7 +149,7 @@ HOSTS:
     flavor: m1.large
     root_volume:
       size: 20
-      delete_on_termination: true
+      delete_on_termination: false
     volumes:
       data1:
         size: 20
@@ -160,10 +160,10 @@ HOSTS:
 
 # Volume Provisioning
 
-When use_volume: true is set:
+When root_volume: true is set:
 - The instance boots from a Cinder volume instead of ephemeral disk.
 - The volume is created using the image specified in the nodeset.
-- The volume size defaults to the image minimum size unless overridden by volume_size.
+- The volume size defaults to the image minimum size unless overridden by volume_size (in Gb).
 - Additional volumes are created and attached after the instance becomes ACTIVE.
 
 ---------------------------------------------------------------------
