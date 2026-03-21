@@ -28,7 +28,7 @@ This version of beaker-openstack has been fully modernized and now supports:
 beaker-openstack provides an OpenStack hypervisor implementation for Beaker.
 It provisions OpenStack instances, assigns floating IPs, manages keypairs, and optionally provisions volumes.
 
-Beaker automatically loads hypervisors based on the "hypervisor:" field in your nodeset.
+Beaker automatically loads hypervisors based on the `hypervisor:` field in your nodeset.
 No explicit require is needed.
 
 ---------------------------------------------------------------------
@@ -52,10 +52,9 @@ gem 'beaker-openstack', '~> 3.0'
 
 # Installation
 
-Add to your Gemfile or gemspec:
-`gem 'beaker-openstack'`
-Then install:
-`bundle install`
+Add to your Gemfile or gemspec: `gem 'beaker-openstack'`
+
+Then install: `bundle install`
 
 ---------------------------------------------------------------------
 
@@ -89,13 +88,24 @@ Optional parameters:
 
 Notes:
 
-- When using _id parameters, ensure all three IDs match the parameter type:
+- When using `_id` parameters, ensure all three IDs match the parameter type:
 ```
 openstack_project_id
 openstack_user_domain_id
 openstack_project_domain_id
 ```
-- Static master nodes can be defined with `hypervisor: none` and providing `hostname`, `vmhostname`, and `ip`.
+
+- Static master nodes can be defined with:
+```
+hypervisor: none
+hostname: <master_hostname>
+vmhostname: <master_hostname>
+ip: <master_ip>
+```
+
+- Additionally, you can set instance creation to occur in parallel instead of sequentially via this CONFIG entry:
+`create_in_parallel: true`
+
 - For parameter precedence, see: [Beaker argument processing](https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md)
 
 ---------------------------------------------------------------------
