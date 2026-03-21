@@ -8,27 +8,31 @@ on:
 
 permissions: {}
 
+# Force all actions to run on Node 24 to clear deprecation warnings
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-release:
-    # Prevent releases from forked repositories
     if: github.repository_owner == 'voxpupuli'
     name: Build the gem
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - name: Install Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 'ruby'
+          ruby-version: 'ruby' # Installs latest stable Ruby
       - name: Build gem
         shell: bash
         run: gem build --verbose *.gemspec
-      - name: Upload gem to GitHub cache
-        uses: actions/upload-artifact@v7
+      - name: Upload gem to GitHub artifact
+        uses: actions/upload-artifact@v4
         with:
           name: gem-artifact
           path: '*.gem'
           retention-days: 1
+          # v4+ is significantly faster; compression is now optional
           compression-level: 0
 
   create-github-release:
@@ -36,10 +40,10 @@ jobs:
     name: Create GitHub release
     runs-on: ubuntu-24.04
     permissions:
-      contents: write # clone repo and create release
+      contents: write
     steps:
-      - name: Download gem from GitHub cache
-        uses: actions/download-artifact@v8
+      - name: Download gem from artifact
+        uses: actions/download-artifact@v4
         with:
           name: gem-artifact
       - name: Create Release
@@ -53,14 +57,14 @@ jobs:
     name: Release to GitHub
     runs-on: ubuntu-24.04
     permissions:
-      packages: write # publish to rubygems.pkg.github.com
+      packages: write
     steps:
-      - name: Download gem from GitHub cache
-        uses: actions/download-artifact@v8
+      - name: Download gem from artifact
+        uses: actions/download-artifact@v4
         with:
           name: gem-artifact
       - name: Publish gem to GitHub packages
-        run: gem push --host https://rubygems.pkg.github.com/${{ github.repository_owner }} *.gem
+        run: gem push --host https://rubygems.pkg.github.com{{ github.repository_owner }} *.gem
         env:
           GEM_HOST_API_KEY: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,12 +72,12 @@ jobs:
     needs: build-release
     name: Release gem to rubygems.org
     runs-on: ubuntu-24.04
-    environment: release # recommended by rubygems.org
+    environment: release
     permissions:
-      id-token: write # rubygems.org authentication
+      id-token: write # Required for OIDC/Trusted Publishing
     steps:
-      - name: Download gem from GitHub cache
-        uses: actions/download-artifact@v8
+      - name: Download gem from artifact
+        uses: actions/download-artifact@v4
         with:
           name: gem-artifact
       - uses: rubygems/configure-rubygems-credentials@v1.0.0
@@ -85,14 +89,14 @@ jobs:
     name: Check that all releases are done
     runs-on: ubuntu-24.04
     permissions:
-      contents: read # minimal permissions that we have to grant
+      contents: read
     needs:
       - create-github-release
       - release-to-github
       - release-to-rubygems
     steps:
-      - name: Download gem from GitHub cache
-        uses: actions/download-artifact@v8
+      - name: Download gem from artifact
+        uses: actions/download-artifact@v4
         with:
           name: gem-artifact
       - name: Install Ruby

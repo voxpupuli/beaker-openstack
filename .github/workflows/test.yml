@@ -12,20 +12,25 @@ on:
 permissions:
   contents: read
 
+# Force all actions to run on Node 24 to clear the deprecation warnings
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   matrix:
     runs-on: ubuntu-24.04
     outputs:
       ruby: ${{ steps.ruby.outputs.versions }}
     steps:
-      - uses: actions/checkout@v6
-      - name: Install Ruby ${{ matrix.ruby }}
+      - uses: actions/checkout@v4
+      - name: Setup Ruby for Versioning
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'
           bundler-cache: true
       - id: ruby
         uses: voxpupuli/ruby-version@v2
+
   test:
     runs-on: ubuntu-latest
     needs: matrix
@@ -35,7 +40,7 @@ jobs:
         ruby: ${{ fromJSON(needs.matrix.outputs.ruby) }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - name: Install Ruby ${{ matrix.ruby }}
         uses: ruby/setup-ruby@v1
         with:
@@ -51,4 +56,4 @@ jobs:
     runs-on: ubuntu-24.04
     name: Test suite
     steps:
-      - run: echo Test suite completed
+      - run: echo "Test suite completed for all Ruby versions"
