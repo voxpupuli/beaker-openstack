@@ -4,11 +4,19 @@ require 'fog/openstack'
 module Beaker
   describe Openstack do
 
+    # -------------------------------------------------------------------------
+    # Default options for OpenStack hypervisor tests
+    # -------------------------------------------------------------------------
     let(:options) do
+      # Start with make_opts and merge in test-specific values
       make_opts.merge(
         'logger' => double.as_null_object,
         'openstack_floating_ip' => true,
-        'floating_ip_pool' => 'my_pool'
+        'floating_ip_pool' => 'my_pool',
+        # MUST be v3 to avoid RuntimeError
+        'openstack_auth_url' => 'http://openstack_hypervisor.labs.net:5000/v3',
+        # Required for v3 Keystone
+        'openstack_project_name' => 'test_project'
       )
     end
 
@@ -28,18 +36,19 @@ module Beaker
     # Keystone version tests
     # -------------------------------------------------------------------------
     context 'keystone version support' do
-      it 'supports keystone v2' do
-        credentials = openstack.instance_eval('@credentials')
-        expect(credentials[:openstack_tenant]).to eq('testing')
-        expect(credentials[:openstack_user_domain]).to be_nil
-        expect(credentials[:openstack_project_domain]).to be_nil
+      it 'raises for keystone v2' do
+        v2_opts = options.dup
+        v2_opts[:openstack_auth_url] = 'http://example.com/identity/v2.0/tokens'
+
+        expect {
+          Openstack.new(@hosts, v2_opts)
+        }.to raise_error(RuntimeError, /Keystone v2 is no longer supported/)
       end
 
       it 'supports keystone v3 with implicit defaults' do
         v3 = options.dup
         v3[:openstack_auth_url] = 'https://example.com/identity/v3'
         v3[:openstack_project_name] = 'TeamTest'
-        v3[:openstack_tenant] = nil
 
         creds = Openstack.new(@hosts, v3).instance_eval('@credentials')
         expect(creds[:openstack_project_name]).to eq('TeamTest')
@@ -53,7 +62,6 @@ module Beaker
         v3[:openstack_project_name] = 'TeamTest'
         v3[:openstack_user_domain] = 'acme'
         v3[:openstack_project_domain] = 'rnd'
-        v3[:openstack_tenant] = nil
 
         creds = Openstack.new(@hosts, v3).instance_eval('@credentials')
         expect(creds[:openstack_user_domain]).to eq('acme')
@@ -69,7 +77,7 @@ module Beaker
         opts = openstack.instance_eval('@options')
         expect(opts['openstack_api_key']).to eq('P1as$w0rd')
         expect(opts['openstack_username']).to eq('user')
-        expect(opts['openstack_auth_url']).to eq('http://openstack_hypervisor.labs.net:5000/v2.0/tokens')
+        expect(opts['openstack_auth_url']).to eq('http://openstack_hypervisor.labs.net:5000/v3') # v3 now
         expect(opts['openstack_network']).to eq('testing')
         expect(opts['security_group']).to eq(['my_sg', 'default'])
         expect(opts['floating_ip_pool']).to eq('my_pool')
