@@ -18,12 +18,12 @@ Get OpenStack access & security credentials:
 
 If you are using [OpenStack Dashboard "Horizon"](https://wiki.openstack.org/wiki/Horizon), you can find these values in the following places:
 
-1. Login to Horizon ? "Project" ? "Compute" ? "Access & Security" ? "API Access" ? "Download OpenStack RC File":
+1. Login to Horizon / "Project" / "Compute" / "Access & Security" / "API Access" / "Download OpenStack RC File":
    - `openstack_auth_url` = `OS_AUTH_URL` (ensure it ends with `/v3`)
    - `openstack_username` = `OS_USERNAME`
    - `openstack_project_name` = `OS_PROJECT_NAME`
-2. `openstack_network`: "Project" ? "Network" ? "Networks"
-3. `openstack_keyname`: "Project" ? "Compute" ? "Access & Security" ? "Key Pairs"
+2. `openstack_network`: "Project" / "Network" / "Networks"
+3. `openstack_keyname`: "Project" / "Compute" / "Access & Security" / "Key Pairs"
 4. `openstack_api_key`: Your user password
 
 ---

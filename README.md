@@ -283,8 +283,8 @@ The spec suite includes:
 # Acceptance Tests
 
 Acceptance tests require:
-- `OPENSTACK_HOSTS` — path to a nodeset using the OpenStack hypervisor
-- `OPENSTACK_KEY` — path to the private SSH key used for the instances
+- `OPENSTACK_HOSTS` - path to a nodeset using the OpenStack hypervisor
+- `OPENSTACK_KEY` - path to the private SSH key used for the instances
 
 Run acceptance tests:
 ```
