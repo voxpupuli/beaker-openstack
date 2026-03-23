@@ -7,7 +7,7 @@
 [![RubyGem Downloads](https://img.shields.io/gem/dt/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
 [![Donated by Puppet Inc](https://img.shields.io/badge/donated%20by-Puppet%20Inc-fb7047.svg)](#transfer-notice)
 
-Beaker hypervisor support for provisioning hosts on modern OpenStack clouds.
+Beaker hypervisor support for provisioning hosts on OpenStack clouds.
 
 This version of beaker-openstack has been fully modernized and now supports:
 
@@ -67,23 +67,27 @@ Required parameters:
 - openstack_auth_url
 - openstack_username
 - openstack_api_key
-- openstack_project_id
-- openstack_user_domain_id
-- openstack_project_domain_id
+- openstack_project_name
 - openstack_network
-- openstack_keyname
 ```
 
 Optional parameters:
 ```
-- openstack_floating_ip
-- openstack_volume_support
-- openstack_volume_size
-- openstack_additional_volumes
+- openstack_keyname
 - security_group
+- openstack_floating_ip
+- floating_ip_pool
+- openstack_volume_support
+- openstack_region
+- openstack_project_id
+- openstack_user_domain
+- openstack_user_domain_id
+- openstack_project_domain
+- openstack_project_domain_id
 - preserve_hosts
 - create_in_parallel
 - run_in_parallel
+- timeout
 ```
 
 Notes:
@@ -112,68 +116,129 @@ ip: <master_ip>
 
 # Nodeset Examples
 
-Minimal example:
+You will need at least two hosts defined in a nodeset file. An example comprehensive nodeset is below (note that not all parameters are required):
 ```
 HOSTS:
-  agent:
+  master:
     roles:
       - agent
+      - master
+      - dashboard
+      - database
     hypervisor: openstack
-    platform: el-9-x86_64
-    image: rhel-9-latest
-    flavor: m1.medium
+    platform: <my_platform> 
+    user: <host_username>
+    image: <host_image>
+    flavor: <host_flavor>
     ssh:
       user: cloud-user
+      password: <cloud-user_password>
+      auth_methods:
+        - password
+        - publickey
+      keys:
+        - <relative_path/public_key>
+    user_data: |
+      #cloud-config
+      output: {all: '| tee -a /var/log/cloud-init-output.log'}
+      disable_root: <True/False>
+      ssh_pwauth: <True/False>
+      chpasswd:
+        list: |
+           root:<root_password>
+           cloud-user:<cloud-user_password>
+        expire: False
+      runcmd:
+        - <my_optional_commands>
+
+  agent_1:
+    roles:
+      - agent
+      - default
+    hypervisor: openstack
+    platform: <my_platform>
+    user: <host_username>
+    image: <host_image>
+    flavor: <host_flavor>
+    ssh:
+      user: cloud-user
+      password: <cloud-user_password>
+      auth_methods:
+        - publickey
+      keys:
+        - <relative_path/public_key>
+      number_of_password_prompts: 0
+      keepalive: true
+      keepalive_interval: 5
+    user_data: |
+      #cloud-config
+      output: {all: '| tee -a /var/log/cloud-init-output.log'}
+      disable_root: <True/False>
+      ssh_pwauth: <True/False>
+      chpasswd:
+        list: |
+           root:<root_password>
+           cloud-user:<cloud-user_password>
+        expire: False
+      runcmd:
+        - <my_optional_commands>
 
 CONFIG:
-  openstack_username: myuser
-  openstack_api_key: mypass
-  openstack_project_id: 1234567890abcdef
-  openstack_user_domain_id: default
-  openstack_project_domain_id: default
-  openstack_auth_url: https://keystone.example.com:5000/v3
-  openstack_network: private-net
-  openstack_keyname: beaker-key
-  openstack_floating_ip: true
-  preserve_hosts: onfail
+  log_level: <trace/debug/verbose/info/notify/warn>
+  trace_limit: 50
+  timesync: <true/false>
+  nfs_server: none
+  consoleport: 443
+  openstack_username: <insert_username>
+  openstack_api_key: <insert_password>
+#  openstack_project_name: <insert_project_name>     # alternatively use openstack_project_id
+  openstack_project_id: <insert_id>
+#  openstack_user_domain: <insert user_domain>       # alternatively use openstack_user_domain_id
+  openstack_user_domain_id: <insert_id>
+#  openstack_project_domain: <insert_project_domain> # alternatively use openstack_project_domain_id
+  openstack_project_domain_id: <insert_id>
+  openstack_auth_url: http://<keystone_ip>:5000/v3/
+  openstack_network: <insert_network>
+  openstack_keyname: <insert_key>
+  openstack_floating_ip: <true/false>
+  floating_ip_pool: <insert_network or uuid>
+  openstack_volume_support: <true/false>
+  security_group: ['default']
+  preserve_hosts: <always/onfail/onpass/never>
   create_in_parallel: true
   run_in_parallel: ['configure', 'install']
+  type: <foss/git/pe>
 ```
 
 Boot-from-volume example:
 ```
 HOSTS:
-  master:
+  agent_1:
     roles:
-      - master
+      - agent
     hypervisor: openstack
-    image: rhel-9-latest
-    flavor: m1.large
+    image: <host_image>
+    flavor: <host_flavor>
     root_volume:
-      size: 20
-      delete_on_termination: true
-    ssh:
-      user: cloud-user
-
-CONFIG:
-  openstack_volume_support: true
+      size: <size in Gb>
+      delete_on_termination: <true/false>
 ```
 
 Additional volumes example:
 ```
 HOSTS:
-  db:
+  agent_2:
     roles:
-      - database
+      - agent
     hypervisor: openstack
-    image: ubuntu-22.04
-    flavor: m1.large
+    image: <host_image>
+    flavor: <host_flavor>
     root_volume:
-      size: 20
-      delete_on_termination: false
+      size: <size in Gb>
+      delete_on_termination: <true/false>
     volumes:
       data1:
-        size: 20
+        size: <size in Gb>
         description: second-volume
 ```
 
@@ -194,7 +259,7 @@ Notes:
 
 # Floating IP Allocation
 - Managed via Neutron.
-- If `openstack_floating_ip: true`, a floating IP is created or reused.
+- If `openstack_floating_ip: true`, a floating IP is created.
 - IP is attached to instance's primary port.
 - Allocation is deterministic and logged clearly
 
