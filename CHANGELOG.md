@@ -17,6 +17,9 @@ All notable changes to this project will be documented in this file.
   - Ephemeral keypairs are now tracked and reliably cleaned up
   - Optional safe recreation when stale keypairs already exist
 
+- **Floating IP management redesigned**
+  - Ephemeral flaoting IPs are now tracked and reliably cleaned up
+
 - **Boot-from-volume and block-device mapping corrected**
   - Proper `block_device_mapping_v2` construction
   - Correct `delete_on_termination` behaviour
