@@ -8,14 +8,11 @@ module Beaker
     # Default options for OpenStack hypervisor tests
     # -------------------------------------------------------------------------
     let(:options) do
-      # Start with make_opts and merge in test-specific values
       make_opts.merge(
         'logger' => double.as_null_object,
         'openstack_floating_ip' => true,
         'floating_ip_pool' => 'my_pool',
-        # MUST be v3 to avoid RuntimeError
         'openstack_auth_url' => 'http://openstack_hypervisor.labs.net:5000/v3',
-        # Required for v3 Keystone
         'openstack_project_name' => 'test_project'
       )
     end
@@ -30,6 +27,7 @@ module Beaker
 
       allow(Fog::Compute).to receive(:new).and_return(@compute_client)
       allow(Fog::Network).to receive(:new).and_return(@network_client)
+
     end
 
     # -------------------------------------------------------------------------
@@ -77,7 +75,7 @@ module Beaker
         opts = openstack.instance_eval('@options')
         expect(opts['openstack_api_key']).to eq('P1as$w0rd')
         expect(opts['openstack_username']).to eq('user')
-        expect(opts['openstack_auth_url']).to eq('http://openstack_hypervisor.labs.net:5000/v3') # v3 now
+        expect(opts['openstack_auth_url']).to eq('http://openstack_hypervisor.labs.net:5000/v3')
         expect(opts['openstack_network']).to eq('testing')
         expect(opts['security_group']).to eq(['my_sg', 'default'])
         expect(opts['floating_ip_pool']).to eq('my_pool')
@@ -148,13 +146,17 @@ module Beaker
         mock_servers = double.as_null_object
         allow(@compute_client).to receive(:servers).and_return(mock_servers)
 
-        vm = double(as_null_object: true)
+        # Stub VM with id, addresses, attach_volume, wait_for
+        vm = double('vm', as_null_object: true)
         allow(vm).to receive(:wait_for)
+        allow(vm).to receive(:id).and_return('vm-123')
+        allow(vm).to receive(:addresses).and_return({'private' => [{'addr' => '10.0.0.1'}]})
+        allow(vm).to receive(:attach_volume)
         allow(mock_servers).to receive(:create).and_return(vm)
 
         mock_metadata = double()
-        allow(vm).to receive(:metadata).and_return(mock_metadata)
         allow(mock_metadata).to receive(:update).and_raise("metadata disabled")
+        allow(vm).to receive(:metadata).and_return(mock_metadata)
 
         mock_ip = double(ip: '172.16.0.1')
         allow(mock_ip).to receive(:server=)
@@ -265,20 +267,25 @@ module Beaker
           'vol1' => { 'size' => 10 }
         })
 
-        client = double.as_null_object
-        openstack.instance_variable_set(:@volume_client, client)
+        # Struct mimics a real host object with .name and .ssh
+        mock_host = Struct.new(:name, :ssh, :root_volume).new('host1', {}, nil)
+
+        # Mock volume client
+        mock_volume_client = double.as_null_object
+        openstack.instance_variable_set(:@volume_client, mock_volume_client)
 
         mock_volume = double(status: 'available', as_null_object: true)
-        expect(client).to receive(:volumes).and_return(double(create: mock_volume))
+        allow(mock_volume_client).to receive(:volumes).and_return(double(create: mock_volume))
 
         allow(mock_volume).to receive(:wait_for).and_return(true)
         allow(mock_volume).to receive(:id).and_return('vol-id')
 
-        mock_vm = double.as_null_object
+        # Mock VM
+        mock_vm = double(as_null_object: true)
+        allow(mock_vm).to receive(:attach_volume)
         expect(mock_vm).to receive(:attach_volume).with('vol-id', '/dev/vdc')
 
-        mock_host = double(name: 'host1', as_null_object: true)
-
+        # Call provision_storage
         openstack.provision_storage(mock_host, mock_vm)
       end
     end

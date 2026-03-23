@@ -1,6 +1,6 @@
 module Beaker
   # Beaker support for OpenStack
-  # Please file any issues/concerns at https://github.com/voxpupuli/beaker-openstack/issues
+  # Please file any issues/concerns at https://github.com
 
   # Additional volumes created via openstack_volume_support are preserved and not deleted by cleanup
   class Openstack < Beaker::Hypervisor
@@ -40,7 +40,9 @@ module Beaker
 
       # Initialize shared resources and mutexes for thread safety
       @vms = []
+      @floating_ips = []
       @vms_mutex = Mutex.new
+      @fip_mutex = Mutex.new
       @keypairs_mutex = Mutex.new
       @cleanup_mutex = Mutex.new
       @cleanup_ran = false
@@ -156,11 +158,18 @@ module Beaker
     def create_instance_resources(host)
       @logger.notify "Provisioning #{host.name}"
 
+      # Revert to standard Beaker managed style (10 character random string) for VM hostname
+      host[:vmhostname] = ('a'..'z').to_a.sample(10).join
+
+      floating_ip = nil
       if @options[:openstack_floating_ip]
-        ip = get_floating_ip
-        host[:vmhostname] = "#{ip.ip.tr('.', '-')}.rfc1918.puppetlabs.net"
-      else
-        host[:vmhostname] = ('a'..'z').to_a.sample(10).join
+        floating_ip = get_floating_ip
+        # Track the Floating IP object immediately for cleanup safety
+        @fip_mutex.synchronize { @floating_ips << floating_ip }
+
+        # Capture the actual IP string for connectivity
+        actual_ip = floating_ip.respond_to?(:floating_ip_address) ? floating_ip.floating_ip_address : (floating_ip.respond_to?(:ip) ? floating_ip.ip : floating_ip.address)
+        host[:ip] = actual_ip
       end
 
       create_or_associate_keypair(host, host[:vmhostname])
@@ -190,29 +199,34 @@ module Beaker
       vm = @compute_client.servers.create(server_opts)
       vm.wait_for(@options[:timeout] || 600) { respond_to?(:ready?) ? ready? : state == 'ACTIVE' }
 
-      if @options[:openstack_floating_ip]
-        ip.server = vm
-        host[:ip] = ip.ip
+      # Register VM for cleanup
+      @vms_mutex.synchronize { @vms << vm }
+
+      if @options[:openstack_floating_ip] && floating_ip
+        # Associate the IP via Compute client to ensure compatibility with Neutron objects
+        @compute_client.associate_address(vm.id, host[:ip])
       else
         # Prefer IPv4 address if multiple networks exist
         addr = vm.addresses.values.flatten.find { |a| a['version'] == 4 }
         host[:ip] = addr && addr['addr']
 
         if host[:ip].nil?
-          @logger.warn "No IPv4 address found for #{host.name}; VM may be IPv6-only"
+          @logger.warn "[#{host.name}] No IPv4 address found; VM may be IPv6-only"
         end
       end
 
-      @logger.debug "Assigned IP #{host[:ip]}"
+      @logger.debug "[#{host.name}] Assigned IP #{host[:ip]}"
 
       # Metadata is best-effort (some clouds disable it)
-      vm.metadata.update(
-        jenkins_build_url: @options[:jenkins_build_url].to_s,
-        department: @options[:department].to_s,
-        project: @options[:project].to_s
-      ) rescue @logger.debug("Metadata update failed")
-
-      @vms_mutex.synchronize { @vms << vm }
+      begin
+        vm.metadata.update(
+          jenkins_build_url: @options[:jenkins_build_url].to_s,
+          department: @options[:department].to_s,
+          project: @options[:project].to_s
+        )
+      rescue => e
+        @logger.debug("[#{host.name}] Metadata update failed: #{e.message}")
+      end
 
       host.wait_for_port(22)
       enable_root(host)
@@ -257,10 +271,18 @@ module Beaker
     end
 
     # Get a floating IP address from the configured pool
-    # Always allocates a new floating IP (no reuse logic)
+    # supports both network name and network UUID
     def get_floating_ip
+      # Check if floating_ip_pool is a UUID; if not, look up the network ID by name
+      pool_id = if @options[:floating_ip_pool] =~ /^[0-9a-f-]{36}$/i
+                  @options[:floating_ip_pool]
+                else
+                  @logger.debug "Looking up floating IP pool network by name: #{@options[:floating_ip_pool]}"
+                  network(@options[:floating_ip_pool]).id
+                end
+
       @network_client.floating_ips.create(
-        floating_network_id: @options[:floating_ip_pool]
+        floating_network_id: pool_id
       )
     end
 
@@ -305,8 +327,12 @@ module Beaker
           vm.attach_volume(vol.id, device)
         rescue => e
           attempts += 1
-          retry if attempts < 3 && sleep(2).nil?
-          raise "Failed to attach volume #{vol_name}: #{e}"
+          if attempts < 3
+            @logger.debug "Attach failed, retrying in 2s... (#{e.message})"
+            sleep 2
+            retry
+          end
+          raise "Failed to attach volume #{vol_name} after 3 attempts: #{e}"
         end
 
         # Wait for Nova to complete attachment
@@ -315,6 +341,9 @@ module Beaker
           vol.status == 'in-use'
         end
       end
+
+      # Ensure host['ssh'] hash exists for key injection if needed later
+      host['ssh'] ||= {}
     end
 
     # Enables root access for a single host when its current user is not 'root'
@@ -327,7 +356,7 @@ module Beaker
     end
 
     # Cleanup all resources
-    # Only ephemeral keypairs are deleted; VMs are destroyed; additional volumes are preserved
+    # Ephemeral keypairs and VMs are destroyed; allocated Floating IPs are released; additional volumes are preserved
     def cleanup
       @logger.notify "Cleaning up OpenStack"
 
@@ -337,10 +366,23 @@ module Beaker
             @logger.debug "Destroying #{vm.name}"
             vm.destroy rescue nil
           rescue => e
-            @logger.error "Cleanup error: #{e.message}"
+            @logger.error "Cleanup error (VM): #{e.message}"
           end
         end
         @vms.clear
+      end
+
+      @fip_mutex.synchronize do
+        @floating_ips.each do |fip|
+          begin
+            ip_addr = fip.respond_to?(:floating_ip_address) ? fip.floating_ip_address : (fip.respond_to?(:ip) ? fip.ip : 'unknown')
+            @logger.debug "Releasing Floating IP #{ip_addr}"
+            fip.destroy rescue nil
+          rescue => e
+            @logger.error "Cleanup error (FIP): #{e.message}"
+          end
+        end
+        @floating_ips.clear
       end
 
       @keypairs_mutex.synchronize do
