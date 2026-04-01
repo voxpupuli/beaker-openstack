@@ -7,50 +7,117 @@
 [![RubyGem Downloads](https://img.shields.io/gem/dt/beaker-openstack.svg)](https://rubygems.org/gems/beaker-openstack)
 [![Donated by Puppet Inc](https://img.shields.io/badge/donated%20by-Puppet%20Inc-fb7047.svg)](#transfer-notice)
 
-Beaker library to use openstack hypervisor
+Beaker hypervisor support for provisioning hosts on OpenStack clouds.
 
-# How to use this wizardry
+This version of beaker-openstack has been fully modernized and now supports:
 
-This gem that allows you to use hosts with [openstack](openstack.md) hypervisor with [beaker](https://github.com/puppetlabs/beaker). 
+- Keystone v3 authentication (v2 removed)
+- Neutron networking only (Nova-network removed)
+- Deterministic floating IP allocation
+- Boot-from-volume provisioning
+- Optional additional Cinder volumes
+- Updated keypair lifecycle management
+- Stronger credential validation and error reporting
+- Predictable provisioning and teardown behavior
+- Updated RSpec suite and acceptance test flow
 
-Beaker will automatically load the appropriate hypervisors for any given hosts file, so as long as your project dependencies are satisfied there's nothing else to do. No need to `require` this library in your tests.
+---------------------------------------------------------------------
 
-## With Beaker 3.x
+# Overview
 
-This library is included as a dependency of Beaker 3.x versions, so there's nothing to do.
+beaker-openstack provides an OpenStack hypervisor implementation for Beaker.
+It provisions OpenStack instances, assigns floating IPs, manages keypairs, and optionally provisions volumes.
 
-## With Beaker 4.x
+Beaker automatically loads hypervisors based on the `hypervisor:` field in your nodeset.
+No explicit require is needed.
 
-As of Beaker 4.0, all hypervisor and DSL extension libraries have been removed and are no longer dependencies. In order to use a specific hypervisor or DSL extension library in your project, you will need to include them alongside Beaker in your Gemfile or project.gemspec. E.g.
+---------------------------------------------------------------------
 
-~~~ruby
-# Gemfile
-gem 'beaker', '~>4.0'
-gem 'beaker-aws'
-# project.gemspec
-s.add_runtime_dependency 'beaker', '~>4.0'
-s.add_runtime_dependency 'beaker-aws'
-~~~
+# Compatibility
 
-# Spec tests
+## Beaker 3.x
+Beaker 3.x included hypervisors directly.
+This gem remains compatible, but Beaker 3 is no longer maintained.
 
-Spec test live under the `spec` folder. There are the default rake task and therefore can run with a simple command:
-```bash
-bundle exec rake test:spec
+## Beaker 4.x and later
+Beaker 4.x removed all bundled hypervisors.
+You must include this gem explicitly:
+
+Gemfile:
+```
+gem 'beaker', '~> 4.0'
+gem 'beaker-openstack', '~> 3.0'
+```
+---------------------------------------------------------------------
+
+# Installation
+
+Add to your Gemfile or gemspec: `gem 'beaker-openstack'`
+
+Then install: `bundle install`
+
+---------------------------------------------------------------------
+
+# Configuration
+
+All OpenStack configuration is provided under the `CONFIG:` section of your nodeset.
+
+Required parameters:
+```
+- openstack_auth_url
+- openstack_username
+- openstack_api_key
+- openstack_project_name
+- openstack_network
 ```
 
-# Acceptance tests
+Optional parameters:
+```
+- openstack_keyname
+- security_group
+- openstack_floating_ip
+- floating_ip_pool
+- openstack_volume_support
+- openstack_region
+- openstack_project_id
+- openstack_user_domain
+- openstack_user_domain_id
+- openstack_project_domain
+- openstack_project_domain_id
+- preserve_hosts
+- create_in_parallel
+- run_in_parallel
+- timeout
+```
 
-We run beaker's base acceptance tests with this library to see if the hypervisor is working with beaker. Please check our [openstack docs](openstack.md) to create host file to run acceptance tests. You need to set two environment variables before running acceptance tests:
+Notes:
 
-1. `OPENSTACK_HOSTS` - Path to hostfile with hosts using openstack hypervisor
+- When using `_id` parameters, ensure all three IDs match the parameter type:
+```
+openstack_project_id
+openstack_user_domain_id
+openstack_project_domain_id
+```
 
-2. `OPENSTACK_KEY` - Path to private key that is used to SSH into Openstack VMs 
+- Static master nodes can be defined with:
+```
+hypervisor: none
+hostname: <master_hostname>
+vmhostname: <master_hostname>
+ip: <master_ip>
+```
+
+- Additionally, you can set instance creation to occur in parallel instead of sequentially via this CONFIG entry:
+`create_in_parallel: true`
+
+- For parameter precedence, see: [Beaker argument processing](https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md)
+
+---------------------------------------------------------------------
+
+# Nodeset Examples
 
 You will need at least two hosts defined in a nodeset file. An example comprehensive nodeset is below (note that not all parameters are required):
-
-```yaml
-
+```
 HOSTS:
   master:
     roles:
@@ -59,7 +126,7 @@ HOSTS:
       - dashboard
       - database
     hypervisor: openstack
-    platform: <my_platform> 
+    platform: <my_platform>
     user: <host_username>
     image: <host_image>
     flavor: <host_flavor>
@@ -134,6 +201,7 @@ CONFIG:
   openstack_network: <insert_network>
   openstack_keyname: <insert_key>
   openstack_floating_ip: <true/false>
+  floating_ip_pool: <insert_network or uuid>
   openstack_volume_support: <true/false>
   security_group: ['default']
   preserve_hosts: <always/onfail/onpass/never>
@@ -142,31 +210,120 @@ CONFIG:
   type: <foss/git/pe>
 ```
 
-Note that when using _id parameters, you must also match the parameter type across the following when domain is specified:
-- openstack_project_id
-- openstack_user_domain_id
-- openstack_project_domain_id 
-
-Further, you can opt to use a static master by setting the master's hypervisor to none, and identifying its location thus:
-```yaml
-    hypervisor: none
-    hostname: <master_hostname>
-    vmhostname: <master_hostname>
-    ip: <master_ip>
+Boot-from-volume example:
+```
+HOSTS:
+  agent_1:
+    roles:
+      - agent
+    hypervisor: openstack
+    image: <host_image>
+    flavor: <host_flavor>
+    root_volume:
+      size: <size in Gb>
+      delete_on_termination: <true/false>
 ```
 
-Additionally, you can set instance creation to occur in parallel instead of sequentially via this CONFIG entry:
-```yaml
-create_in_parallel: true
+Additional volumes example:
+```
+HOSTS:
+  agent_2:
+    roles:
+      - agent
+    hypervisor: openstack
+    image: <host_image>
+    flavor: <host_flavor>
+    root_volume:
+      size: <size in Gb>
+      delete_on_termination: <true/false>
+    volumes:
+      data1:
+        size: <size in Gb>
+        description: second-volume
 ```
 
-Additional parameter information is available at https://github.com/voxpupuli/beaker/blob/master/docs/concepts/argument_processing_and_precedence.md
+Notes:
+- `root_volume` replaces ephemeral disk.
+- `volumes` are attached after instance is ACTIVE.
+- `volume_size` defaults to image minimum unless overridden.
+- `Floating IPs` are allocated deterministically if enabled.
 
-There is a simple rake task to invoke acceptance test for the library once the two environment variables are set:
-```bash
+---------------------------------------------------------------------
+
+# Volume Provisioning
+- Instance boots from Cinder volume instead of ephemeral disk if root_volume is set.
+- Volume size can be overridden via volume_size.
+- The volume size defaults to the image minimum size unless overridden by volume_size (in Gb).
+- Additional volumes are created after the instance becomes ACTIVE.
+---------------------------------------------------------------------
+
+# Floating IP Allocation
+- Managed via Neutron.
+- If `openstack_floating_ip: true`, a floating IP is created.
+- IP is attached to instance's primary port.
+- Allocation is deterministic and logged clearly
+
+---------------------------------------------------------------------
+
+# Spec Tests
+
+RSpec tests live under spec/.
+Run them with:
+`bundle exec rake test:spec`
+
+The spec suite includes:
+- Credential validation
+- Keypair lifecycle
+- Volume provisioning logic
+- Floating IP allocation
+- Error handling and retries
+
+---------------------------------------------------------------------
+
+# Acceptance Tests
+
+Acceptance tests require:
+- `OPENSTACK_HOSTS` - path to a nodeset using the OpenStack hypervisor
+- `OPENSTACK_KEY` - path to the private SSH key used for the instances
+
+Run acceptance tests:
+```
 bundle exec rake test:acceptance
 ```
 
+At least one host must use the OpenStack hypervisor.
+
+---------------------------------------------------------------------
+
+# Troubleshooting
+
+## Authentication failures:
+Ensure all three Keystone v3 IDs are correct:
+- `openstack_project_id`
+- `openstack_user_domain_id`
+- `openstack_project_domain_id`
+
+## Floating IP not assigned:
+Check:
+- Neutron external network exists
+- Security groups allow SSH ingress
+
+## Volume creation errors:
+Verify:
+- Cinder backend is available
+- Volume type exists (if specified)
+
+SSH timeouts:
+Use:
+```
+ssh:
+  keepalive: true
+  keepalive_interval: 5
+```
+---------------------------------------------------------------------
+
 # Contributing
 
-Please refer to puppetlabs/beaker's [contributing](https://github.com/puppetlabs/beaker/blob/master/CONTRIBUTING.md) guide.
+Contributions are welcome.
+Please follow the Beaker project?s contribution guidelines:
+https://github.com/voxpupuli/.github/blob/master/CONTRIBUTING.md
