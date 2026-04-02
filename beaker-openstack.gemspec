@@ -19,7 +19,6 @@ Gem::Specification.new do |s|
   s.require_paths = ['lib']
 
   s.metadata = {
-    'allowed_push_host' => 'https://rubygems.org',
     'source_code_uri'   => 'https://github.com/voxpupuli/beaker-openstack',
     'changelog_uri'     => 'https://github.com/voxpupuli/beaker-openstack/blob/main/CHANGELOG.md',
     'bug_tracker_uri'   => 'https://github.com/voxpupuli/beaker-openstack/issues'
