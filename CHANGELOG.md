@@ -2,7 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.1.0](https://github.com/voxpupuli/beaker-openstack/tree/2.1.0) (2025-12-31)
+## [3.0.0](https://github.com/voxpupuli/beaker-openstack/tree/3.0.0) (2026-04-02)
+
+[Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/2.1.0...3.0.0)
+
+**Breaking changes:**
+
+- Major rewrite fixing root and additional volume creation, floating IP and keypair management, logging and cleanup. Keystone v2 support removed \(v3 required\) [\#38](https://github.com/voxpupuli/beaker-openstack/pull/38) ([canihavethisone](https://github.com/canihavethisone))
+
+**Merged pull requests:**
+
+- Updated gemspec to modern syntax [\#37](https://github.com/voxpupuli/beaker-openstack/pull/37) ([canihavethisone](https://github.com/canihavethisone))
+
+## [2.1.0](https://github.com/voxpupuli/beaker-openstack/tree/2.1.0) (2026-01-01)
 
 [Full Changelog](https://github.com/voxpupuli/beaker-openstack/compare/2.0.0...2.1.0)
 
